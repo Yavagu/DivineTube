@@ -2,13 +2,13 @@
 
 **Updated:** 2026-11-10 (Asia/Calcutta)
 
-**Phase:** Universal family redesign implemented (version 0.2.0); device/API/release verification blocked.
+**Phase:** Universal family redesign & Room v2 migration verified (version 0.2.0); device and credentialed API testing pending operator setup.
 
-**Active task:** FAM-05: Documentation, build/test verification, secret scan, commit and push.
+**Active task:** Universal family redesign tasks FAM-01 through FAM-05 VERIFIED. Ready for device and API testing.
 
 **Current platform/owner:** Antigravity orchestrator. Shared documentation remains main-agent-owned.
 
-**Repository:** Public at https://github.com/Yavagu/DivineTube, branch main tracking origin/main. Prior release 0.1.0 committed as 0fcf1de and 6e85e78; universal family redesign (version 0.2.0) ready to push.
+**Repository:** Public at https://github.com/Yavagu/DivineTube, branch main tracking origin/main. Prior release 0.1.0 committed as 0fcf1de and 6e85e78; universal family redesign commit 64b2f30 followed by verification and defect fixes ready to push.
 
 ## Implemented
 - Universal family Home: single shared Viewer Mode Home for all family members, large cards, featured entry banner, Continue Watching (based on locally stored last-opened episode), and ordered category sections.
@@ -21,16 +21,26 @@
 ## Verified build evidence
 - JDK 21.0.8; Gradle 8.13; SDK 36.1; compile 36.1 / target 36 / min 26.
 - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0).
-- 17 JVM tests passed. Lint: 0 errors, dependency version notices only. Android test APK compiled.
-- Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (versionCode 2, versionName 0.2.0).
+- 18 JVM unit tests passed (8 YouTube API, 4 link parser, 4 attempt policy, 2 PIN crypto).
+- Lint: 0 errors, 15 dependency/Gradle version notices only (per ADR-006). Android test APK compiled.
+- Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (versionCode 2, versionName 0.2.0, SHA-256 `631780D5EFB9B61497EB87E9CB3B3FA720EA76C0D021F63A486AF032040FE724`).
+- Android test APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`.
 - Schema v2 exported at `app/schemas/com.yourtube.app.data.local.LibraryDatabase/2.json`.
+- Room migration verified via standalone SQLite simulation and `LibraryMigrationTest.kt` schema assertions.
 - `git diff --check` passed cleanly; secret/credential pattern scan passed.
-- `connectedDebugAndroidTest` remains blocked pending connected device/AVD.
+- `connectedDebugAndroidTest` exited with code 1 (`DeviceException: No connected devices!`) pending connected device/AVD.
 
 ## Genuine blockers / limitations
-- No connected Android device/emulator: UI, startup, actual Keystore/Room persistence, lifecycle, and player runtime checks remain open.
-- No YouTube Data API key supplied: real search and playback eligibility/embedded playback remain untested. Keyless approvals are supported; keyless playback is intentionally blocked by YouTube's mandatory Made for Kids lookup.
+- No connected Android device/emulator: UI, startup, actual Keystore/Room persistence on device, lifecycle, and player runtime checks remain open.
+- No YouTube Data API key supplied: real search and playback eligibility/embedded playback remain untested against live endpoints. Keyless approvals and local management are supported; keyless playback is intentionally blocked by YouTube's mandatory Made for Kids lookup.
 - No child-directed Google registration, privacy-policy publication, legal/retention/branding audit, or real-player navigation-escape acceptance performed. Not release-ready and not a complete safety boundary.
 
-## Changed paths / handoff
-Updated `PROJECT_SPEC.md`, `PLAN.md`, `README.md`, `DECISIONS.md`, `docs/PRIVACY.md`, `app/build.gradle.kts`, `AndroidManifest.xml`, `AppViewModel.kt`, `YourTubeApplication.kt`, `LibraryDatabase.kt`, `LibraryRepository.kt`, `PlayerScreen.kt`, `YourTubeApp.kt`, `NavigationTest.kt`, `LibraryRepositoryTest.kt`, and added `2.json` schema and `LibraryMigrationTest.kt`.
+## Changed paths in this session
+- `app/src/main/java/com/yourtube/app/ui/YourTubeApp.kt`: Fixed category deletion dialog message to refer to "Family Favorites" instead of "All favorites".
+- `app/src/androidTest/java/com/yourtube/app/data/local/LibraryMigrationTest.kt`: Fixed v1 schema identity hash string and added watch history persistence checks.
+- `app/src/test/java/com/yourtube/app/data/youtube/YoutubeLinkTest.kt`: Added edge-case tests for URL shapes (mixed case, query parameters, music.youtube.com, parenthesized URLs) and length boundaries.
+- `app/src/test/java/com/yourtube/app/security/AttemptPolicyTest.kt`: Added wall-clock rollback tolerance tests.
+- `docs/VERIFICATION.md`: Restructured to clearly separate version 0.2.0 verification from version 0.1.0 records, documenting all commands, exit codes, artifacts, and test counts.
+- `PLAN.md`: Reconciled FAM-05 to VERIFIED with exact build and test evidence.
+- `PROJECT_STATUS.md`: Updated active task, test counts, APK SHA-256, and verification status.
+- `HANDOFF.md`: Recorded full Antigravity handover and verification results.

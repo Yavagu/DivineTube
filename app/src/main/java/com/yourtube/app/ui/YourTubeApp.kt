@@ -302,7 +302,7 @@ private fun CategoriesPanel(model: AppViewModel, categories: List<Category>) {
         }
     }
     if (deleting != null) AlertDialog(onDismissRequest = { deleting = null }, title = { Text("Delete category?") },
-        text = { Text("Approved videos remain available under All favorites.") }, confirmButton = { TextButton(onClick = { model.deleteCategory(deleting!!); deleting = null }) { Text("Delete") } },
+        text = { Text("Approved videos remain available under Family Favorites.") }, confirmButton = { TextButton(onClick = { model.deleteCategory(deleting!!); deleting = null }) { Text("Delete") } },
         dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } })
 }
 

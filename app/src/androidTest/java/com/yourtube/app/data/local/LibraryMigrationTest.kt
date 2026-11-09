@@ -28,7 +28,7 @@ class LibraryMigrationTest {
                         db.execSQL("CREATE UNIQUE INDEX index_approved_entries_playlistId ON approved_entries(playlistId)")
                         db.execSQL("INSERT INTO categories(id,name,position) VALUES(7,'Series',0)")
                         db.execSQL("INSERT INTO approved_entries(id,title,videoIds,playlistId,categoryId,position) VALUES(11,'Saved series','abcdefghijk,lmnopqrstuv','PL1234567890',7,0)")
-                        db.execSQL("INSERT OR REPLACE INTO room_master_table(id,identity_hash) VALUES(42,'ae229b9ab917952d98812a4bd7fb9f9')")
+                        db.execSQL("INSERT OR REPLACE INTO room_master_table(id,identity_hash) VALUES(42,'ae229b9ab917952d98812a4bd7fb9f9f')")
                     }
                     override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
                 }).build()
@@ -45,6 +45,13 @@ class LibraryMigrationTest {
             assertEquals("MANUAL", entry.refreshMode)
             assertFalse(entry.featured)
             assertEquals("Series", database.libraryDao().categories().single().name)
+
+            // Test watch history on migrated database
+            database.libraryDao().putWatchHistory(WatchHistory(11L, "abcdefghijk", 0, 5000L))
+            val savedHistory = database.libraryDao().watchHistory(11L)
+            assertNotNull(savedHistory)
+            assertEquals("abcdefghijk", savedHistory!!.videoId)
+            assertEquals(0, savedHistory.episodeIndex)
         } finally {
             database.close()
             context.deleteDatabase(name)

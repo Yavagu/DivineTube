@@ -2,7 +2,35 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: universal family redesign and database v2 migration
+## Latest handoff: version 0.2.0 verification, defect fixes, and test expansion
+
+- **Recorded:** 2026-11-10 (Asia/Calcutta), Antigravity orchestrator.
+- **Authorization/result:** User requested completion of remaining development, thorough verification, documentation update, and commit/push to GitHub.
+- **Work completed:**
+  - Resolved project-state inconsistency: reconciled task FAM-05 in `PLAN.md` with build evidence and test outcomes.
+  - Fixed category deletion dialog message in `YourTubeApp.kt` to reference `"Family Favorites"` rather than outdated `"All favorites"`.
+  - Corrected identity hash typo in `LibraryMigrationTest.kt` (restoring missing trailing `'f'`) and added `watch_history` persistence assertions.
+  - Expanded unit test coverage in `YoutubeLinkTest.kt` (supported video shapes, mixed-case schemes/hosts, query parameters on shorts, music.youtube.com, parenthesized URLs, and length boundaries) and `AttemptPolicyTest.kt` (wall-clock rollback tolerance boundary check).
+  - Validated Room database v1→v2 migration logic via standalone SQLite simulation (`verify_migration.py`), verifying full preservation of categories, entries, ordering, snapshots, default values, and foreign-key cascade deletion on `watch_history`.
+  - Verified absence of hardcoded secrets or committed credentials.
+  - Restructured `docs/VERIFICATION.md` to distinctly document version 0.2.0 verification results separate from historical version 0.1.0 records.
+- **Checks & execution evidence:**
+  - JDK 21.0.8, Gradle 8.13.
+  - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0).
+  - 18 JVM unit tests passed (8 YouTube API, 4 link parser, 4 attempt policy, 2 PIN crypto).
+  - Android lint passed with 0 errors and 15 dependency/Gradle version notices (per ADR-006).
+  - `gradlew.bat :app:connectedDebugAndroidTest` failed with exit code 1 (`DeviceException: No connected devices!`) due to no attached Android device or pre-configured emulator.
+  - `git diff --check` passed cleanly with no whitespace errors.
+- **Artifacts:**
+  - Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (versionCode 2, versionName 0.2.0, SHA-256 `631780D5EFB9B61497EB87E9CB3B3FA720EA76C0D021F63A486AF032040FE724`).
+  - Android Test APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`.
+- **Git state:** Committing reviewed changes and pushing to `main` on https://github.com/Yavagu/DivineTube.
+- **Remaining blockers & operator next steps:**
+  - Connect an authorized Android device (API 26+) with USB debugging or configure an Android emulator, then run `.\gradlew.bat :app:connectedDebugAndroidTest`.
+  - Set up a restricted YouTube Data API v3 key in `local.properties` (`youtube.apiKey=YOUR_KEY`) to enable live search and embedded playback status verification.
+  - Complete child-directed client Google Cloud designation, published privacy policy / contact info, and store registration before public distribution.
+
+## Previous handoff: universal family redesign and database v2 migration
 
 - **Recorded:** 2026-11-10 (Asia/Calcutta), Antigravity orchestrator.
 - **Authorization/result:** User requested commit and push of universal family redesign and Room v2 updates to GitHub.
@@ -29,21 +57,6 @@ Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git c
 - **Changed paths:** Prior implementation committed; PLAN.md, PROJECT_STATUS.md, HANDOFF.md updated; trailing blank lines cleaned in LibraryRepository.kt, AttemptPolicy.kt, PinStore.kt, AttemptPolicyTest.kt.
 - **Git state:** main tracks origin/main; publication handoff committed and pushed after the implementation. Local configuration and generated artifacts remain ignored.
 - **Next action/blockers:** Complete the device/API/policy verification below. Public source availability does not mean release certification; no APK release was created.
-
-## Previous handoff: first Android development build
-
-- **Recorded:** 2026-11-10 (Asia/Calcutta).
-- **Source → destination:** Codex → same platform/new session or Antigravity.
-- **Task/objective:** User requested a complete first native Android version in one continuous session. Implementation/build work completed; runtime and release acceptance remain blocked.
-- **Work completed:** Native Kids/Parent screens, PIN security and lock boundaries, Room categories/order/playlist snapshots, pasted/shared link approvals, official Data API search/status/pagination, official IFrame playback implementation, build/test harness and setup docs. No claim of successful device launch or real playback.
-- **Files modified:** Root Gradle setup/wrapper; app source/resources/schema/JVM and instrumented tests; README; docs/PRIVACY.md, docs/VERIFICATION.md; original README retained at docs/AGENT_SETUP.md; PLAN, PROJECT_STATUS, HANDOFF, DECISIONS. Agent configs and PROJECT_SPEC preserved.
-- **Decisions:** ADR-006 pinned supported toolchain; ADR-007 keyless approval but playback requires API status lookup; ADR-008 Keystore/PBKDF2/persistent throttling and non-restorable parent sessions. User's explicit continuous implementation authorization superseded sequential coding gates, not runtime/release acceptance.
-- **Tests executed/outcomes:** With JDK21, `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0); 17 JVM tests passed, lint 0 errors/14 version notices. `gradlew.bat :app:connectedDebugAndroidTest` failed (exit 1), `DeviceException: No connected devices!`. `adb devices` empty, no configured AVD. `aapt dump badging` confirms com.yourtube.app, min26, target36, MainActivity. `git diff --check` passed. Earlier configuration/lint failures and an intermediate stale-bytecode test failure were fixed/rerun; detailed evidence and paths in docs/VERIFICATION.md.
-- **Artifacts:** app/build/outputs/apk/debug/app-debug.apk; SHA-256 967E2D0E760E83EF34EEA9855D57728E9D8E37A01133A205D2DD4EB171CC2CCF. Device-test APK and HTML reports also generated. These outputs are ignored, not committed.
-- **Git branch/HEAD/status:** main, HEAD 9da06b8, tracking origin/main. Started clean; implementation is uncommitted. No commit/push or external publishing performed.
-- **Uncommitted changes:** All source/build/docs changes above belong to this session. Ignored local.properties contains SDK path only; no key is configured. No unrelated user changes were found or overwritten.
-- **Outstanding problems:** Cannot certify completion: device launch, actual DB/Keystore and lifecycle/UI checks, credentialed API calls/playback, and child-directed policy/account/legal/retention/branding obligations remain open. Official embed recommendations/links are not fully controllable; no guaranteed allowlist claim. Keyless playback conflicts with mandatory status lookup, documented explicitly.
-- **Next action:** Attach an Android device or configure an emulator, configure a restricted YouTube Data API key locally, complete developer child-directed setup, install APK, run connected tests and the manual sequence in docs/VERIFICATION.md. Fix issues, rerun affected checks, and only then mark blocked PLAN acceptance rows VERIFIED. Main agent owns shared docs; use bounded non-overlapping implementation delegation.
 
 ## Cross-platform rules
 

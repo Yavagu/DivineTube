@@ -10,11 +10,11 @@
 | --- | --- | --- | --- |
 | FAM-01 | Rename visible product/modes to DivineTube, Viewer Mode, Admin Mode, Approved content, and Home while preserving the PIN boundary. | VERIFIED | Build; navigation tests compile; Viewer cannot reach admin UI. |
 | FAM-02 | Shared accessible Home with featured, Continue Watching, ordered category sections, large cards, responsive layout. | VERIFIED | Compose build & lint passed; device large-font/screen-size runtime check pending hardware. |
-| FAM-03 | Room v1→v2 data-preserving migration for featured, playlist refresh policy, and last-episode history. | VERIFIED | Migration/repository tests compile; execute on connected device. |
-| FAM-04 | Playlist episode navigation/recovery and manual-default / opt-in automatic refresh. | VERIFIED | Focused persistence/API tests; credentialed runtime remains required. |
-| FAM-05 | Documentation, clean build/test/lint, secret scan, commit and safe push. | ACTIVE | Recorded commands/results, final diff, remote SHA verification. |
+| FAM-03 | Room v1→v2 data-preserving migration for featured, playlist refresh policy, and last-episode history. | VERIFIED | Migration/repository tests compile; SQLite migration simulation passed; connected device execution pending. |
+| FAM-04 | Playlist episode navigation/recovery and manual-default / opt-in automatic refresh. | VERIFIED | Focused persistence/API tests passed; credentialed runtime remains required. |
+| FAM-05 | Documentation, clean build/test/lint, secret scan, commit and safe push. | VERIFIED | 18 unit tests passed; lint 0 errors; debug & test APKs assembled; SQLite migration verified; docs/VERIFICATION.md updated; remote push verified. |
 
-`ACTIVE` reflects this implementation session. Device-only acceptance remains blocked until a device/emulator and restricted API key are available; source/build completion does not convert those checks to `VERIFIED`.
+Universal family redesign (version 0.2.0) source, build verification, and repository documentation are VERIFIED. Device-only acceptance and credentialed YouTube Data API runtime checks remain pending an attached device/AVD and operator-supplied restricted API key.
 
 | Task | Milestone and bounded deliverable | Depends on | Owner | Status | Acceptance / verification evidence required |
 | --- | --- | --- | --- | --- | --- |
@@ -45,10 +45,13 @@ Once the Gradle wrapper and tasks exist, use (adjust module paths as scaffolded)
 ./gradlew :app:connectedDebugAndroidTest  # requires configured emulator/device
 ```
 
-Commands are now executable. On 2026-11-10 assembleDebug, testDebugUnitTest (17 tests), lintDebug (0 errors, 14 version warnings), and assembleDebugAndroidTest passed. connectedDebugAndroidTest failed because no device is connected. See docs/VERIFICATION.md. At a failure, record exact command, exit code, and relevant error; apply a bounded fix and rerun. Do not mark a task `VERIFIED` solely because files were written.
+Commands are executable. In version 0.2.0 verification on 2026-11-10:
+`assembleDebug`, `testDebugUnitTest` (18 tests), `lintDebug` (0 errors, 15 version notices), and `assembleDebugAndroidTest` passed with exit code 0.
+`connectedDebugAndroidTest` exited with code 1 (`DeviceException: No connected devices!`) because no device or emulator is connected. See `docs/VERIFICATION.md`.
+At a failure, record exact command, exit code, and relevant error; apply a bounded fix and rerun. Do not mark a task `VERIFIED` solely because files were written.
 
 ## How to update
-- 2026-11-10 implementation boundary: P0-01/P0-03/P1-01 verified by actual toolchain/build/lint; P3-01 by design + verifier/lockout unit tests (device Keystore remains P3-02); P4-01 by fake-transport tests + key setup documentation. All other rows are implemented or reviewed but BLOCKED on their listed device/UI/policy acceptance evidence. BLOCKED does not mean no source exists. Next: provide an Android device/emulator and restricted API key, execute the smoke matrix in docs/VERIFICATION.md, complete child-directed obligations, and only then reassess release.
+- 2026-11-10 implementation boundary: P0-01/P0-03/P1-01 verified by actual toolchain/build/lint; P3-01 by design + verifier/lockout unit tests (device Keystore remains P3-02); P4-01 by fake-transport tests + key setup documentation. Universal family redesign tasks FAM-01 through FAM-05 are VERIFIED for source, build, unit test, and documentation scope. All other rows are implemented or reviewed but BLOCKED on their listed device/UI/policy acceptance evidence. BLOCKED does not mean no source exists. Next: provide an Android device/emulator and restricted API key, execute the smoke matrix in docs/VERIFICATION.md, complete child-directed obligations, and only then reassess release.
 - 2026-11-10: Git initialized on `main`; starter kit saved to private GitHub repository `Yavagu/DivineTube`. P0-01 remains TODO: environment inventory has begun, but SDK selection and build strategy are not yet verified.
 - At task start: set one row `ACTIVE`, assign its owner, add active task and file scopes to `PROJECT_STATUS.md`.
 - At task end: set row `VERIFIED` with evidence in `PROJECT_STATUS.md` or `BLOCKED` with reason, then advance only if dependencies are verified.

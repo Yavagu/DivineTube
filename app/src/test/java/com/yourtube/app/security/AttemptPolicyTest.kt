@@ -28,4 +28,14 @@ class AttemptPolicyTest {
         val rollback = AttemptPolicy.check(state, wallNow = 1_000L, elapsedNow = 30_000L, bootCount = 8)
         assertEquals(AttemptPolicy.MAX_LOCK_MS, rollback.retryAfterMillis)
     }
+
+    @Test fun wallClockRollbackTriggersMaxLockoutOnlyWhenExceedingTolerance() {
+        val baseState = AttemptState(failures = 0, lastWall = 100_000L, lastElapsed = 20_000L)
+        // Within 60s rollback tolerance: no max lockout
+        val withinTolerance = AttemptPolicy.check(baseState, wallNow = 45_000L, elapsedNow = 25_000L)
+        assertEquals(0L, withinTolerance.retryAfterMillis)
+        // Exceeding 60s rollback tolerance (rollback by 65s): triggers MAX_LOCK_MS (1 hour)
+        val beyondTolerance = AttemptPolicy.check(baseState, wallNow = 35_000L, elapsedNow = 25_000L)
+        assertEquals(AttemptPolicy.MAX_LOCK_MS, beyondTolerance.retryAfterMillis)
+    }
 }
