@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -28,6 +30,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.yourtube.app.AppState
 import com.yourtube.app.AppViewModel
 import com.yourtube.app.data.local.Category
+import com.yourtube.app.data.local.ApprovedEntry
+import com.yourtube.app.data.local.WatchHistory
 
 private val Palette = lightColorScheme(primary = Color(0xFF395AB5), secondary = Color(0xFF277D71),
     tertiary = Color(0xFF9A5C1F), background = Color(0xFFF6F7FC), surface = Color.White)
@@ -38,7 +42,7 @@ fun YourTubeApp(model: AppViewModel) {
     val state by model.state.collectAsStateWithLifecycle()
     val entries by model.entries.collectAsStateWithLifecycle()
     val categories by model.categories.collectAsStateWithLifecycle()
-    var selected by rememberSaveable { mutableStateOf<Long?>(null) }
+    val history by model.histories.collectAsStateWithLifecycle()
     var privacy by remember { mutableStateOf(false) }
     val online = rememberOnline()
     MaterialTheme(colorScheme = Palette) {
@@ -46,8 +50,8 @@ fun YourTubeApp(model: AppViewModel) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f).combinedClickable(onClick = {}, onLongClick = model::showGate)) {
-                        Text("YourTube", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Palette.primary)
-                        Text(if (state.parent) "Parent studio" else "A little library of big discoveries", style = MaterialTheme.typography.bodyMedium)
+                        Text("DivineTube", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Palette.primary)
+                        Text(if (state.parent) "Admin Mode" else "Home · Viewer Mode", style = MaterialTheme.typography.bodyMedium)
                     }
                     if (state.parent) TextButton(onClick = model::lock) { Text("Done & lock") }
                 }
@@ -60,35 +64,41 @@ fun YourTubeApp(model: AppViewModel) {
                 } else if (state.parent) {
                     ParentScreen(model, state, categories, Modifier.weight(1f))
                 } else {
-                    if (categories.isNotEmpty()) {
-                        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 20.dp)) {
-                            item { FilterChip(selected == null, { selected = null }, label = { Text("All favorites") }) }
-                            items(categories, key = { it.id }) { category ->
-                                Column(Modifier.width(140.dp)) {
-                                    Thumbnail(entries.firstOrNull { it.categoryId == category.id }?.videoIds?.substringBefore(','), Modifier.fillMaxWidth().height(72.dp))
-                                    FilterChip(selected == category.id, { selected = category.id }, label = { Text(category.name) })
-                                }
-                            }
-                        }
-                    }
-                    val visible = entries.filter { selected == null || it.categoryId == selected }
-                    if (visible.isEmpty()) {
+                    val visibleHistory = history.filter { h -> entries.any { it.id == h.entryId } }
+                    if (entries.isEmpty()) {
                         Column(Modifier.weight(1f).fillMaxWidth().padding(32.dp), Arrangement.Center, Alignment.CenterHorizontally) {
-                            Text("Your next adventure awaits", style = MaterialTheme.typography.headlineSmall)
+                            Text("Welcome to Home", style = MaterialTheme.typography.headlineSmall)
                             Spacer(Modifier.height(12.dp))
-                            Text("Your saved favorites will appear here.")
+                            Text("Approved favorites will appear here.")
                         }
                     } else {
-                        LazyVerticalGrid(columns = GridCells.Adaptive(250.dp), modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            gridItems(visible, key = { it.id }) { entry ->
-                                Card(onClick = { model.play(entry) }) {
-                                    Thumbnail(entry.videoIds.substringBefore(','), Modifier.fillMaxWidth().height(155.dp))
-                                    Column(Modifier.padding(16.dp)) {
-                                        Text(entry.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                                        Text(if (entry.playlistId == null) "Watch on YouTube" else "${entry.videoIds.split(',').size} saved videos · YouTube",
-                                            style = MaterialTheme.typography.bodySmall)
+                        LazyColumn(modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                            entries.firstOrNull { it.featured }?.let { featured -> item(key = "featured") { EntryCard(featured, true) { model.play(featured) } } }
+                            if (visibleHistory.isNotEmpty()) item(key = "continue") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Continue Watching", style = MaterialTheme.typography.headlineSmall)
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        items(visibleHistory, key = { "history-${it.entryId}" }) { item ->
+                                            val entry = entries.firstOrNull { it.id == item.entryId }
+                                            if (entry != null) EntryCard(entry, false, Modifier.width(320.dp)) { model.play(entry) }
+                                        }
                                     }
+                                }
+                            }
+                            categories.forEach { category ->
+                                val grouped = entries.filter { it.categoryId == category.id }
+                                if (grouped.isNotEmpty()) item(key = "category-${category.id}") {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(category.name, style = MaterialTheme.typography.headlineSmall)
+                                        grouped.forEach { entry -> EntryCard(entry, false) { model.play(entry) } }
+                                    }
+                                }
+                            }
+                            val uncategorized = entries.filter { entry -> entry.categoryId == null || categories.none { it.id == entry.categoryId } }
+                            if (uncategorized.isNotEmpty()) item(key = "uncategorized") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Family Favorites", style = MaterialTheme.typography.headlineSmall)
+                                    uncategorized.forEach { EntryCard(it, false) { model.play(it) } }
                                 }
                             }
                         }
@@ -100,8 +110,21 @@ fun YourTubeApp(model: AppViewModel) {
             if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text("Privacy & YouTube") },
                 text = { PrivacyNotice() }, confirmButton = { TextButton(onClick = { privacy = false }) { Text("Close") } })
         }
-        BackHandler(state.parent || state.gate || state.playback != null || selected != null) {
-            when { state.playback != null -> model.closePlayback(); state.parent || state.gate -> model.lock(); else -> selected = null }
+        BackHandler(state.parent || state.gate || state.playback != null) {
+            when { state.playback != null -> model.closePlayback(); else -> model.lock() }
+        }
+    }
+}
+
+@Composable
+private fun EntryCard(entry: ApprovedEntry, featured: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = modifier.fillMaxWidth().heightIn(min = if (featured) 240.dp else 190.dp)) {
+        Column {
+            Thumbnail(entry.videoIds.substringBefore(','), Modifier.fillMaxWidth().height(if (featured) 170.dp else 125.dp))
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(entry.title, fontWeight = FontWeight.Bold, style = if (featured) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge)
+                Text(if (entry.playlistId == null) "Watch approved video" else "Series · ${entry.videoIds.split(',').size} saved episodes", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
@@ -111,7 +134,7 @@ private fun PinDialog(state: AppState, model: AppViewModel) {
     var pin by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
     var consent by remember { mutableStateOf(false) }
-    AlertDialog(onDismissRequest = model::lock, title = { Text(if (state.configured) "Parent access" else "Set your parent PIN") },
+    AlertDialog(onDismissRequest = model::lock, title = { Text(if (state.configured) "Admin access" else "Set your Admin PIN") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Use 6–12 digits. Forgotten PINs require clearing all app data, including the library.")
@@ -135,7 +158,7 @@ fun PrivacyNotice() {
     val uri = LocalUriHandler.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Approvals and PIN verification data stay on this device. There are no analytics or accounts. YouTube receives your IP address and device/app information when thumbnails, search, or its embedded player load.")
-        Text("YouTube controls its player, ads, recommendations, and links. These can show content beyond your approvals. YourTube is not a kiosk or a guarantee of content safety. Review each video yourself.")
+        Text("YouTube controls its player, ads, recommendations, and links. These can show content beyond approved content. DivineTube is not a kiosk or a guarantee of content safety. Review each video yourself.")
         Text("YouTube Terms: https://www.youtube.com/t/terms\nGoogle Privacy: https://policies.google.com/privacy", style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = { uri.openUri("https://www.youtube.com/t/terms") }) { Text("Read YouTube terms") }
         TextButton(onClick = { uri.openUri("https://policies.google.com/privacy") }) { Text("Read Google privacy policy") }
@@ -146,7 +169,7 @@ fun PrivacyNotice() {
 private fun ParentScreen(model: AppViewModel, state: AppState, categories: List<Category>, modifier: Modifier) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(modifier) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf("Add", "Library", "Categories").forEachIndexed { i, title ->
                 FilterChip(tab == i, { tab = i }, label = { Text(title) })
             }
@@ -171,7 +194,7 @@ private fun AddPanel(model: AppViewModel, state: AppState, categories: List<Cate
     var category by remember { mutableStateOf<Long?>(null) }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("Choose their next favorite", style = MaterialTheme.typography.headlineSmall)
+            Text("Add approved content", style = MaterialTheme.typography.headlineSmall)
             Text("Paste a YouTube link, share from YouTube, or search below. Approval is always your choice.")
         }
         item { OutlinedTextField(link, { link = it }, Modifier.fillMaxWidth(), label = { Text("YouTube video or playlist link") }) }
@@ -218,6 +241,7 @@ private fun AddPanel(model: AppViewModel, state: AppState, categories: List<Cate
 private fun LibraryPanel(model: AppViewModel, categories: List<Category>) {
     val entries by model.entries.collectAsStateWithLifecycle()
     var removing by remember { mutableStateOf<Long?>(null) }
+    var trusting by remember { mutableStateOf<Long?>(null) }
     LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text("Approved library", style = MaterialTheme.typography.headlineSmall) }
         if (entries.isEmpty()) item { Text("Nothing approved yet. Use Add to start your library.") }
@@ -225,20 +249,35 @@ private fun LibraryPanel(model: AppViewModel, categories: List<Category>) {
             Card { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(entry.title, fontWeight = FontWeight.Bold)
                 Text("${entry.videoIds.split(',').size} saved video(s)")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (entry.featured) Text("Featured on Home", style = MaterialTheme.typography.titleMedium)
+                    else OutlinedButton(onClick = { model.setFeatured(entry.id) }, modifier = Modifier.heightIn(min = 48.dp)) { Text("Feature on Home") }
+                }
                 CategorySelector(categories, entry.categoryId) { model.assignCategory(entry.id, it) }
-                Row {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                     TextButton(onClick = { model.play(entry) }) { Text("Play") }
                     TextButton(onClick = { model.moveEntry(entry.id, -1) }) { Text("Up") }
                     TextButton(onClick = { model.moveEntry(entry.id, 1) }) { Text("Down") }
                     TextButton(onClick = { removing = entry.id }) { Text("Remove") }
                 }
-                entry.playlistId?.let { playlist -> TextButton(onClick = { model.prepareLink("https://www.youtube.com/playlist?list=$playlist", entry.title); }) { Text("Fetch refreshed snapshot (review in Add)") } }
+                entry.playlistId?.let { playlist ->
+                    Text("Playlist updates: ${if (entry.refreshMode == "AUTOMATIC") "Automatic (trusted)" else "Manual review"}", style = MaterialTheme.typography.bodyLarge)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                        TextButton(onClick = { model.setRefreshMode(entry.id, "MANUAL") }) { Text("Manual refresh") }
+                        TextButton(onClick = { trusting = entry.id }) { Text("Enable automatic updates") }
+                        TextButton(onClick = { model.refreshPlaylist(entry.id) }) { Text("Refresh now") }
+                    }
+                }
             } }
         }
     }
     if (removing != null) AlertDialog(onDismissRequest = { removing = null }, title = { Text("Remove approval?") },
-        text = { Text("This item will disappear from Kids Mode.") }, confirmButton = { TextButton(onClick = { model.removeEntry(removing!!); removing = null }) { Text("Remove") } },
+        text = { Text("This item will disappear from Home.") }, confirmButton = { TextButton(onClick = { model.removeEntry(removing!!); removing = null }) { Text("Remove") } },
         dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } })
+    if (trusting != null) AlertDialog(onDismissRequest = { trusting = null }, title = { Text("Trust automatic playlist updates?") },
+        text = { Text("New videos from this YouTube playlist can appear on Home when Admin Mode opens. This uses API quota and skips manual review until you switch back to Manual refresh.") },
+        confirmButton = { TextButton(onClick = { model.setRefreshMode(trusting!!, "AUTOMATIC"); trusting = null }) { Text("Enable updates") } },
+        dismissButton = { TextButton(onClick = { trusting = null }) { Text("Keep manual review") } })
 }
 
 @Composable

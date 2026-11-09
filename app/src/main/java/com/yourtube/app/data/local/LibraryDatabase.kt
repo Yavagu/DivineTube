@@ -1,6 +1,7 @@
 package com.yourtube.app.data.local
 
 import androidx.room.*
+import androidx.room.migration.Migration
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "categories", indices = [Index(value = ["position"], unique = true)])
@@ -22,7 +23,21 @@ data class ApprovedEntry(
     val videoIds: String,
     val playlistId: String? = null,
     val categoryId: Long? = null,
-    val position: Int
+    val position: Int,
+    val featured: Boolean = false,
+    val refreshMode: String = "MANUAL"
+)
+
+@Entity(
+    tableName = "watch_history",
+    foreignKeys = [ForeignKey(entity = ApprovedEntry::class, parentColumns = ["id"], childColumns = ["entryId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("entryId")]
+)
+data class WatchHistory(
+    @PrimaryKey val entryId: Long,
+    val videoId: String,
+    val episodeIndex: Int,
+    val lastOpenedAt: Long
 )
 
 @Dao
@@ -38,6 +53,9 @@ abstract class LibraryDao {
     @Update abstract suspend fun updateEntry(entry: ApprovedEntry)
     @Delete abstract suspend fun deleteEntry(entry: ApprovedEntry)
     @Query("SELECT * FROM approved_entries WHERE id = :id") abstract suspend fun entry(id: Long): ApprovedEntry?
+    @Query("SELECT * FROM watch_history ORDER BY lastOpenedAt DESC") abstract fun observeWatchHistory(): Flow<List<WatchHistory>>
+    @Query("SELECT * FROM watch_history WHERE entryId = :entryId") abstract suspend fun watchHistory(entryId: Long): WatchHistory?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun putWatchHistory(history: WatchHistory)
 
     @Transaction
     open suspend fun deleteCategoryAndCompact(category: Category) {
@@ -46,7 +64,18 @@ abstract class LibraryDao {
     }
 }
 
-@Database(entities = [Category::class, ApprovedEntry::class], version = 1, exportSchema = true)
+@Database(entities = [Category::class, ApprovedEntry::class, WatchHistory::class], version = 2, exportSchema = true)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE approved_entries ADD COLUMN featured INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE approved_entries ADD COLUMN refreshMode TEXT NOT NULL DEFAULT 'MANUAL'")
+                db.execSQL("CREATE TABLE IF NOT EXISTS watch_history (entryId INTEGER NOT NULL, videoId TEXT NOT NULL, episodeIndex INTEGER NOT NULL, lastOpenedAt INTEGER NOT NULL, PRIMARY KEY(entryId), FOREIGN KEY(entryId) REFERENCES approved_entries(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_entryId ON watch_history(entryId)")
+            }
+        }
+    }
 }

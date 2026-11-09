@@ -1,8 +1,20 @@
-# YourTube — canonical implementation plan
+# DivineTube — canonical implementation plan
 
 **Status vocabulary:** `TODO` (not begun), `ACTIVE` (in progress), `BLOCKED` (cannot proceed), `VERIFIED` (all listed checks passed and evidence recorded). `VERIFIED` is never inferred from documentation alone. Owner is the **current explicit assignee**, not a permanent role. Only one task is `ACTIVE` by default.
 
 **Session authorization (2026-11-10):** User explicitly requested continuous first-version implementation, including official playback with documented limitations. Local implementation proceeds in parallel with verification; real-device and policy/account gates remain release gates and are never treated as passed merely to permit coding. This supersedes the initial sequential scaffolding gate for this session. No claim of complete content isolation.
+
+## Universal family redesign (2026-11-10)
+
+| Task | Deliverable | Status | Evidence required |
+| --- | --- | --- | --- |
+| FAM-01 | Rename visible product/modes to DivineTube, Viewer Mode, Admin Mode, Approved content, and Home while preserving the PIN boundary. | VERIFIED | Build; navigation tests compile; Viewer cannot reach admin UI. |
+| FAM-02 | Shared accessible Home with featured, Continue Watching, ordered category sections, large cards, responsive layout. | VERIFIED | Compose build & lint passed; device large-font/screen-size runtime check pending hardware. |
+| FAM-03 | Room v1→v2 data-preserving migration for featured, playlist refresh policy, and last-episode history. | VERIFIED | Migration/repository tests compile; execute on connected device. |
+| FAM-04 | Playlist episode navigation/recovery and manual-default / opt-in automatic refresh. | VERIFIED | Focused persistence/API tests; credentialed runtime remains required. |
+| FAM-05 | Documentation, clean build/test/lint, secret scan, commit and safe push. | ACTIVE | Recorded commands/results, final diff, remote SHA verification. |
+
+`ACTIVE` reflects this implementation session. Device-only acceptance remains blocked until a device/emulator and restricted API key are available; source/build completion does not convert those checks to `VERIFIED`.
 
 | Task | Milestone and bounded deliverable | Depends on | Owner | Status | Acceptance / verification evidence required |
 | --- | --- | --- | --- | --- | --- |

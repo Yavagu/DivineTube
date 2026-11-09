@@ -16,7 +16,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class Playback(val ids: List<String>, val title: String, val preview: Boolean, val entryId: Long? = null)
+data class Playback(
+    val ids: List<String>,
+    val title: String,
+    val preview: Boolean,
+    val entryId: Long? = null,
+    val initialIndex: Int = 0,
+)
 data class Review(val title: String, val ids: List<String>, val playlistId: String? = null)
 data class AppState(
     val ready: Boolean = false, val configured: Boolean = false,
@@ -29,6 +35,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as YourTubeApplication
     val categories = app.library.categories.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val entries = app.library.entries.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val histories = app.library.watchHistory.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     private val mutable = MutableStateFlow(AppState())
     val state = mutable.asStateFlow()
     private var epoch = 0L
@@ -83,6 +90,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 if (token == epoch && success) {
                     touch()
                     mutable.value = state.value.copy(configured = true, parent = true, gate = false, busy = false)
+                    refreshTrustedPlaylists()
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { if (token == epoch) mutable.value = state.value.copy(busy = false, message = e.message ?: "PIN verification failed.") }
@@ -144,15 +152,67 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun removeEntry(id: Long) = parentWork { app.library.removeEntry(id) }
     fun moveEntry(id: Long, delta: Int) = parentWork { app.library.moveEntry(id, delta) }
     fun assignCategory(id: Long, categoryId: Long?) = parentWork { app.library.assignCategory(id, categoryId) }
+    fun setFeatured(id: Long) = parentWork { app.library.setFeatured(id) }
+    fun setRefreshMode(id: Long, mode: String) = parentWork { app.library.setRefreshMode(id, mode) }
+    fun refreshPlaylist(id: Long) = parentWork {
+        val entry = entries.value.firstOrNull { it.id == id } ?: error("Approved content was not found.")
+        val playlistId = entry.playlistId ?: error("Only playlists can be refreshed.")
+        val items = app.youtube.playlistVideos(playlistId)
+        if (entry.refreshMode == "AUTOMATIC") {
+            app.library.refreshPlaylistSnapshot(id, items.map { it.id })
+            mutable.value = state.value.copy(message = "Trusted playlist updated from YouTube.")
+        } else {
+            mutable.value = state.value.copy(
+                review = Review(entry.title, items.map { it.id }, playlistId),
+                message = "Review the refreshed playlist before approving it.",
+            )
+        }
+    }
     fun play(entry: ApprovedEntry) {
-        // Re-read from the approved stream; caller-provided IDs are never accepted as Kids launch targets.
+        // Re-read from the approved stream; caller-provided IDs are never accepted as Viewer launch targets.
         val approved = entries.value.firstOrNull { it.id == entry.id } ?: return
-        mutable.value = state.value.copy(playback = Playback(approved.videoIds.split(','), approved.title, false, approved.id))
+        val ids = approved.videoIds.split(',')
+        val history = histories.value.firstOrNull { it.entryId == approved.id }
+        val savedIndex = history?.videoId?.let(ids::indexOf)?.takeIf { it >= 0 }
+            ?: history?.episodeIndex?.coerceIn(0, ids.lastIndex)
+            ?: 0
+        mutable.value = state.value.copy(playback = Playback(ids, approved.title, false, approved.id, savedIndex))
+        playerEpisodeOpened(savedIndex)
     }
     fun preview(id: String, title: String) {
         if (state.value.parent && Regex("[A-Za-z0-9_-]{11}").matches(id))
             mutable.value = state.value.copy(playback = Playback(listOf(id), title, true))
     }
     fun closePlayback() { mutable.value = state.value.copy(playback = null) }
+    fun selectEpisode(index: Int) {
+        val playback = state.value.playback ?: return
+        if (index !in playback.ids.indices) return
+        mutable.value = state.value.copy(playback = playback.copy(initialIndex = index))
+        playerEpisodeOpened(index)
+    }
+    fun playerEpisodeOpened(index: Int) {
+        val playback = state.value.playback ?: return
+        val entryId = playback.entryId ?: return
+        val id = playback.ids.getOrNull(index) ?: return
+        viewModelScope.launch {
+            runCatching { app.library.recordWatch(entryId, index, System.currentTimeMillis()) }
+                .onFailure { mutable.value = state.value.copy(message = "Could not save Continue Watching.") }
+        }
+    }
     suspend fun playbackStatus(id: String) = app.youtube.videoStatus(id)
+
+    private fun refreshTrustedPlaylists() {
+        if (!state.value.parent || state.value.busy) return
+        val trusted = entries.value.filter { it.playlistId != null && it.refreshMode == "AUTOMATIC" }
+        if (trusted.isEmpty()) return
+        parentWork {
+            var updated = 0
+            trusted.forEach { entry ->
+                val snapshot = app.youtube.playlistVideos(entry.playlistId!!).map { it.id }
+                app.library.refreshPlaylistSnapshot(entry.id, snapshot)
+                updated++
+            }
+            mutable.value = state.value.copy(message = "$updated trusted playlist(s) refreshed.")
+        }
+    }
 }

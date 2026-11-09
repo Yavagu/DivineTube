@@ -1,8 +1,8 @@
 # Privacy and player limitations
 
-YourTube stores category names, parent-provided titles, video IDs, playlist snapshots, ordering, and the protected PIN verifier in app-private local storage. Android backup is disabled. Clearing app data deletes the library and PIN; no cloud recovery or telemetry exists. The app requests only internet and network-state permissions.
+DivineTube stores category names, administrator-provided titles, video IDs, playlist snapshots, ordering, featured selection, per-playlist refresh policy, last-opened episode history, and the protected PIN verifier in app-private local storage. It does not fabricate or display playback progress. Android backup is disabled. Clearing app data deletes the library and PIN; no cloud recovery or telemetry exists. The app requests only internet and network-state permissions.
 
-The PIN uses a random 16-byte salt and PBKDF2-HMAC-SHA256 (210,000 iterations). The verifier is encrypted with an Android Keystore AES-GCM key; plaintext PINs are not persisted. Attempts are committed before verification. Five failures start exponential lockout from 30 seconds up to one hour. Parent sessions live only in memory, are not restored after process death, and close on activity pause or two minutes of inactivity. Screenshots and recents previews are protected by FLAG_SECURE. A PIN is not an OS/device security boundary.
+The PIN uses a random 16-byte salt and PBKDF2-HMAC-SHA256 (210,000 iterations). The verifier is encrypted with an Android Keystore AES-GCM key; plaintext PINs are not persisted. Attempts are committed before verification. Five failures start exponential lockout from 30 seconds up to one hour. Admin sessions live only in memory, are not restored after process death, and close on activity pause or two minutes of inactivity. Screenshots and recents previews are protected by FLAG_SECURE. A PIN is not an OS/device security boundary.
 
 Network disclosures:
 

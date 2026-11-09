@@ -10,7 +10,11 @@ import com.yourtube.app.security.PinStore
 import java.security.MessageDigest
 
 class YourTubeApplication : Application() {
-    val database by lazy { Room.databaseBuilder(this, LibraryDatabase::class.java, "library.db").build() }
+    val database by lazy {
+        Room.databaseBuilder(this, LibraryDatabase::class.java, "library.db")
+            .addMigrations(LibraryDatabase.MIGRATION_1_2)
+            .build()
+    }
     val library by lazy { LibraryRepository(database) }
     val pins by lazy { PinStore(this) }
     @Suppress("DEPRECATION")

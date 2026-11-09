@@ -14,12 +14,13 @@ class NavigationTest {
 
     @Test fun launchesLockedAndHiddenEntryOnlyOpensPinGate() {
         compose.waitUntil(10_000) { compose.onAllNodesWithText("Opening your library…").fetchSemanticsNodes().isEmpty() }
-        compose.onNodeWithText("Parent studio").assertDoesNotExist()
+        compose.onNodeWithText("Admin Mode").assertDoesNotExist()
+        compose.onNodeWithText("Home · Viewer Mode").assertExists()
         compose.onNodeWithText("Search YouTube").assertDoesNotExist()
-        compose.onNodeWithText("YourTube").performTouchInput { longClick() }
+        compose.onNodeWithText("DivineTube").performTouchInput { longClick() }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("PIN").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("PIN").assertExists()
-        compose.onNodeWithText("Parent studio").assertDoesNotExist()
+        compose.onNodeWithText("Admin Mode").assertDoesNotExist()
         compose.onNodeWithText("Cancel").performClick()
         compose.onNodeWithText("PIN").assertDoesNotExist()
     }
@@ -34,7 +35,7 @@ class NavigationTest {
             })
         }
         compose.waitUntil(10_000) { compose.onAllNodesWithText("PIN").fetchSemanticsNodes().isNotEmpty() }
-        compose.onNodeWithText("Parent studio").assertDoesNotExist()
+        compose.onNodeWithText("Admin Mode").assertDoesNotExist()
         compose.onNodeWithText("Review link").assertDoesNotExist()
     }
 }

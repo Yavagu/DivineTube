@@ -7,6 +7,36 @@ class LibraryRepository(private val database: LibraryDatabase) {
     private val dao = database.libraryDao()
     val categories: Flow<List<Category>> = dao.observeCategories()
     val entries: Flow<List<ApprovedEntry>> = dao.observeEntries()
+    val watchHistory: Flow<List<WatchHistory>> = dao.observeWatchHistory()
+
+    suspend fun recordWatch(entryId: Long, index: Int, timestamp: Long) = database.withTransaction {
+        val entry = dao.entry(entryId) ?: return@withTransaction
+        val ids = entry.videoIds.split(',')
+        require(index in ids.indices) { "Episode index is outside the approved snapshot" }
+        dao.putWatchHistory(WatchHistory(entryId, ids[index], index, timestamp))
+    }
+
+    suspend fun setFeatured(entryId: Long) = database.withTransaction {
+        val target = dao.entry(entryId) ?: return@withTransaction
+        dao.entries().filter { it.featured && it.id != entryId }.forEach { dao.updateEntry(it.copy(featured = false)) }
+        if (!target.featured) dao.updateEntry(target.copy(featured = true))
+    }
+
+    suspend fun setRefreshMode(entryId: Long, mode: String) = database.withTransaction {
+        require(mode == "MANUAL" || mode == "AUTOMATIC") { "Unsupported refresh mode" }
+        val entry = dao.entry(entryId) ?: return@withTransaction
+        require(mode == "MANUAL" || entry.playlistId != null) { "Automatic refresh is available only for playlists" }
+        dao.updateEntry(entry.copy(refreshMode = mode))
+    }
+
+    suspend fun refreshPlaylistSnapshot(entryId: Long, videoIds: List<String>) = database.withTransaction {
+        require(videoIds.size in 1..MAX_SNAPSHOT_SIZE) { "A snapshot must contain between 1 and $MAX_SNAPSHOT_SIZE video IDs" }
+        val cleanIds = videoIds.map { it.trim() }
+        require(cleanIds.all(VIDEO_ID::matches)) { "Snapshot contains an invalid video ID" }
+        val entry = dao.entry(entryId) ?: return@withTransaction
+        require(entry.playlistId != null) { "Only playlists have refreshable snapshots" }
+        dao.updateEntry(entry.copy(videoIds = cleanIds.distinct().joinToString(",")))
+    }
 
     suspend fun createCategory(name: String): Long {
         val clean = name.trim().take(48)

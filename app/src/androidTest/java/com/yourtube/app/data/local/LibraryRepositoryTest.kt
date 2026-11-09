@@ -79,4 +79,23 @@ class LibraryRepositoryTest {
         assertEquals("abcdefghijk", db.libraryDao().entries().single().videoIds)
         context.deleteDatabase(name)
     }
+
+    @Test fun featuredRefreshAndWatchHistoryRespectPlaylistSnapshot() = runBlocking {
+        val playlist = repo.approve("Series", listOf("abcdefghijk", "lmnopqrstuv"), playlistId = "PL1234567890")
+        val video = repo.approve("Film", listOf("mnopqrstuvw"))
+        repo.setFeatured(playlist)
+        repo.setFeatured(video)
+        repo.setRefreshMode(playlist, "AUTOMATIC")
+        repo.refreshPlaylistSnapshot(playlist, listOf("lmnopqrstuv", "mnopqrstuvw"))
+        repo.recordWatch(playlist, 1, 1234L)
+        val saved = db.libraryDao().entry(playlist)!!
+        assertTrue(saved.featured.not())
+        assertEquals("AUTOMATIC", saved.refreshMode)
+        assertEquals("Series", saved.title)
+        assertEquals("lmnopqrstuv,mnopqrstuvw", saved.videoIds)
+        assertEquals(1, db.libraryDao().watchHistory(playlist)!!.episodeIndex)
+        assertEquals("mnopqrstuvw", db.libraryDao().watchHistory(playlist)!!.videoId)
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { repo.setRefreshMode(video, "AUTOMATIC") } }
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { repo.recordWatch(playlist, 9, 0L) } }
+    }
 }

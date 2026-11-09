@@ -1,8 +1,27 @@
-# YourTube — cross-platform handoff
+# DivineTube — cross-platform handoff
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: public GitHub source publication
+## Latest handoff: universal family redesign and database v2 migration
+
+- **Recorded:** 2026-11-10 (Asia/Calcutta), Antigravity orchestrator.
+- **Authorization/result:** User requested commit and push of universal family redesign and Room v2 updates to GitHub.
+- **Work completed:**
+  - Universal family redesign: single Viewer Mode Home with featured approved entry, Continue Watching section based on locally saved last episode, ordered categories, large accessible cards.
+  - Hidden PIN-gated Admin Mode with Content Approval, playlist auto/manual update controls, category manager, and YouTube link intake.
+  - Room database v1→v2 additive migration with `featured`, `refreshMode`, and `watch_history` cascade table, preserving existing IDs, order, and playlist snapshots.
+  - Terminology updated to DivineTube, Viewer Mode, Admin Mode, Approved Content, Home, while keeping IDs, keystore aliases, package names, and room database names intact.
+  - Bumped version to 0.2.0 (versionCode 2).
+- **Checks:**
+  - JDK 21.0.8, Gradle 8.13.
+  - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0).
+  - 17 unit tests passed. Lint passed with 0 errors.
+  - Staged whitespace check `git diff --check` passed cleanly.
+  - Credential and secret scan passed.
+- **Git state:** main branch pushing to https://github.com/Yavagu/DivineTube.
+- **Next action/blockers:** Connected-device runtime testing and YouTube API key setup for full end-to-end device acceptance.
+
+## Previous handoff: public GitHub source publication
 
 - **Recorded:** 2026-11-10 (Asia/Calcutta), Codex main.
 - **Authorization/result:** User requested public upload. Implementation commit 0fcf1de pushed to main; `gh repo edit Yavagu/DivineTube --visibility public --accept-visibility-change-consequences` succeeded. `gh repo view --json visibility,url` confirmed PUBLIC at https://github.com/Yavagu/DivineTube.

@@ -27,39 +27,52 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
-    var index by remember(playback) { mutableIntStateOf(0) }
+    var index by remember(playback) { mutableIntStateOf(playback.initialIndex.coerceIn(0, playback.ids.lastIndex.coerceAtLeast(0))) }
     var retry by remember { mutableIntStateOf(0) }
     var allowed by remember(playback, index, retry) { mutableStateOf(false) }
     var failure by remember(playback, index, retry) { mutableStateOf<String?>(null) }
     val id = playback.ids.getOrNull(index)
+    fun chooseEpisode(episode: Int) {
+        index = episode
+        model.selectEpisode(episode)
+    }
     LaunchedEffect(id, retry) {
         try {
             require(id != null) { "This saved item has no video." }
             val status = model.playbackStatus(id)
             require(status.embeddable) { "This video does not allow embedded playback." }
-            // Both true and false are known MFK statuses; neither substitutes for a parent's review.
+            // Both true and false are known MFK statuses; neither substitutes for administrator review.
             allowed = true
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { failure = e.message ?: "Video is unavailable. Check your connection." }
     }
     Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TextButton(onClick = model::closePlayback) { Text("Back to library") }
-        Text(playback.title, style = MaterialTheme.typography.titleLarge)
-        if (playback.preview) Text("Parent preview • not an approval")
+        Button(onClick = model::closePlayback, modifier = Modifier.heightIn(min = 52.dp)) { Text("Home") }
+        Text(playback.title, style = MaterialTheme.typography.headlineSmall)
+        if (playback.ids.size > 1) Text("Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium)
+        if (playback.preview) Text("Admin preview · not approved")
         if (allowed && id != null) key(id, retry) {
-            YoutubeEmbed(id, Modifier.fillMaxWidth().heightIn(min = 220.dp).aspectRatio(16f / 9f)) { failure = it }
+            YoutubeEmbed(id, Modifier.fillMaxWidth().heightIn(min = 270.dp).aspectRatio(16f / 9f)) { failure = it }
         } else if (failure == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Checking YouTube playback availability…") }
         failure?.let {
-            Text(if (model.state.value.parent) it else "This video can't be played right now. Please ask a parent for help.", color = MaterialTheme.colorScheme.error)
+            Text(if (model.state.value.parent) it else "This video can't be played right now. Please ask your administrator for help.", color = MaterialTheme.colorScheme.error)
             Text("Check your internet connection, or try another saved video.")
             Button(onClick = { retry++ }) { Text("Try again") }
         }
-        if (playback.ids.size > 1) Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = { index-- }, enabled = index > 0) { Text("Previous") }
+        if (playback.ids.size > 1) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            OutlinedButton(onClick = { chooseEpisode(index - 1) }, enabled = index > 0, modifier = Modifier.heightIn(min = 52.dp)) { Text("Previous") }
             Text("${index + 1} / ${playback.ids.size}", Modifier.padding(top = 16.dp))
-            OutlinedButton(onClick = { index++ }, enabled = index < playback.ids.lastIndex) { Text("Next") }
+            Button(onClick = { chooseEpisode(index + 1) }, enabled = index < playback.ids.lastIndex, modifier = Modifier.heightIn(min = 52.dp)) { Text("Next") }
         }
-        Text("YouTube may show recommendations, ads, and links beyond this library. Only this app's launch targets are parent-approved.", style = MaterialTheme.typography.bodySmall)
+        if (playback.ids.size > 1) {
+            Text("Episodes", style = MaterialTheme.typography.headlineSmall)
+            playback.ids.forEachIndexed { episode, _ ->
+                OutlinedButton(onClick = { chooseEpisode(episode) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    Text(if (episode == index) "Now playing · Episode ${episode + 1}" else "Episode ${episode + 1}", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+        Text("YouTube may show recommendations, ads, and links beyond this library. DivineTube opens only approved content from Home.", style = MaterialTheme.typography.bodySmall)
     }
 }
 
