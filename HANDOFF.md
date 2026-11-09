@@ -2,19 +2,18 @@
 
 This file records the **latest meaningful task boundary**, not a transcript. The receiving platform must read `AGENTS.md`, `PROJECT_SPEC.md`, the relevant `PLAN.md` rows, `PROJECT_STATUS.md`, and `DECISIONS.md`, then verify `git status`, diff, branch, files, and tests before trusting any claim below. If the branch/worktree is unexpectedly dirty or another platform owns the active task, stop and clarify ownership. Never treat this document as a lock or automatic memory sync.
 
-## Latest handoff: BOOTSTRAP
-- **Recorded:** 2026-11-09
-- **Source → destination:** Starter-kit generator → first Codex **or** Antigravity session
-- **Task/objective:** Initialize repository workflow; no Android application work started.
-- **Work completed:** Shared requirements, roadmap, role definitions, platform instructions, and startup prompts prepared.
-- **Files modified:** Project workflow files only (`AGENTS.md`, `GEMINI.md`, `PROJECT_SPEC.md`, `PLAN.md`, `PROJECT_STATUS.md`, `HANDOFF.md`, `DECISIONS.md`, `.codex/`, `.agents/`, startup prompts, README, `.gitignore`).
-- **Decisions:** See `DECISIONS.md` (particularly player safety and shared authority).
-- **Tests executed/outcomes:** Android builds/tests **not run**; no app code. See README for starter ZIP validation, which does not prove local agent loading.
-- **Git branch/HEAD/status:** Unknown after extraction; new working directory may not be a Git repository. Receiving agent must inspect and record it.
-- **Uncommitted changes:** Unknown after extraction; no assumption of a clean checkout.
-- **Outstanding problems:** Local tools/versions and YouTube embedding policy/child-directed applicability must be checked.
-- **Next action:** Take `P0-01` in `PLAN.md`; review `P0-02` before committing to any playback design.
-
+## Latest handoff: GitHub setup
+- **Recorded:** 2026-11-10 (Asia/Calcutta)
+- **Source → destination:** Codex → same platform/new session
+- **Task/objective:** User-authorized Git initialization and private GitHub save as DivineTube.
+- **Work completed:** Initialized main, committed all 17 starter-kit files as c800f41, created private Yavagu/DivineTube, pushed and configured origin/main. No app implementation.
+- **Files modified:** PLAN.md, PROJECT_STATUS.md, HANDOFF.md record setup; original starter files preserved in initial commit.
+- **Decisions:** Repository defaults to private; application requirements and playback gate unchanged.
+- **Tests executed/outcomes:** `git init -b main` passed; `git commit -m "Initialize DivineTube project context and agent configuration"` passed; `gh repo create Yavagu/DivineTube --private --source . --remote origin --push --description "Native Android app for parent-curated YouTube content; feasibility and tooling phase"` passed. `git ls-remote origin refs/heads/main` confirmed c800f41. `gh repo view Yavagu/DivineTube --json nameWithOwner,url,isPrivate,defaultBranchRef` confirmed private/main. Credential-pattern scan using `rg -l --hidden -g '!.git' '(AIza[0-9A-Za-z_-]{35}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]+|sk-[A-Za-z0-9]{20,}|-----BEGIN .*PRIVATE KEY-----)' .` returned 1 (no matches; not a comprehensive secrets audit). Initial `git diff --cached --check` found Markdown trailing spaces in PROJECT_STATUS.md; those lines are cleaned in this documentation update. Android build/test/lint not run: no application or wrapper.
+- **Git branch/HEAD/status:** main tracking origin/main; c800f41 was clean and remote-confirmed before this documentation update. This update is to be committed and pushed separately.
+- **Uncommitted changes:** Only the three owned documentation paths above at handoff-writing time; no unrelated changes found.
+- **Outstanding problems:** P0-01 tooling compatibility/SDK selection and P0-02 safety/policy gate remain incomplete. Root model selection was not independently verified; project config requests Astra/medium. Project trust confirmed and native planner executed successfully; grunt exposed but not invoked.
+- **Next action:** Claim P0-01, select compatible SDK/JDK/build strategy from official sources, then assess P0-02. Do not implement playback before its authorization and feasibility gate.
 ## Replace this section at the next meaningful handoff
 Use the same fields in order; replace the **Latest handoff** section rather than appending endless session history. Keep unusually important architectural reasoning in `DECISIONS.md` instead. **Never record tokens, API keys, PINs, personal data, or raw secret-bearing logs.**
 

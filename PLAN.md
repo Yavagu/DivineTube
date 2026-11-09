@@ -36,6 +36,7 @@ Once the Gradle wrapper and tasks exist, use (adjust module paths as scaffolded)
 Commands above are **planned, not yet executable** in this starter kit; no Gradle wrapper or `app/` module exists. At a failure, record exact command, exit code, and relevant error; apply a bounded fix and rerun. Do not mark a task `VERIFIED` solely because files were written.
 
 ## How to update
+- 2026-11-10: Git initialized on `main`; starter kit saved to private GitHub repository `Yavagu/DivineTube`. P0-01 remains TODO: environment inventory has begun, but SDK selection and build strategy are not yet verified.
 - At task start: set one row `ACTIVE`, assign its owner, add active task and file scopes to `PROJECT_STATUS.md`.
 - At task end: set row `VERIFIED` with evidence in `PROJECT_STATUS.md` or `BLOCKED` with reason, then advance only if dependencies are verified.
 - Do not start dependent tasks while an unmet gate is `TODO` or `BLOCKED`.
