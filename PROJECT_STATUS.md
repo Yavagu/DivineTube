@@ -1,40 +1,38 @@
 # YourTube — current state snapshot
 
-**Updated:** 2026-11-10 (Git and GitHub setup completed)
+**Updated:** 2026-11-10 (Asia/Calcutta)
 
-**Phase:** 0 — feasibility and tooling
+**Phase:** First Android development build delivered; device/API/release verification blocked.
 
-**Active task:** None; next `P0-01`, then `P0-02`.
+**Active task:** None running. Next action: connected-device and credentialed playback verification from `docs/VERIFICATION.md`.
 
-**Current platform/owner:** Codex; no delegated file edits.
+**Current platform/owner:** Codex main. Bounded storage/security and YouTube subagents finished; no other platform edits were observed. Shared documentation remains main-agent-owned.
 
-**Repository:** Private `https://github.com/Yavagu/DivineTube`, branch `main`, remote `origin`. Starter commit `c800f41` pushed successfully.
+**Repository:** main at 9da06b8, tracking origin/main. This session started clean and leaves implementation changes uncommitted; nothing was pushed.
 
-**Environment inventory:** Project trust confirmed; native planner executed and grunt role is available. Java 25.0.4.1 runs; JDK 21/26 directories also exist but were not executed. SDK platforms 34/36.1 and build-tools 34.0.0/36.1.0/37.0.0 exist. SDK/JDK environment variables are unset. Compatibility, SDK selection, and actual Android builds remain unverified.
-**Development status:** Not started. This repository contains only workflow instructions/configuration, not app implementation.
+## Implemented
+- Native Compose/Material 3 Kids library with approved-only launch targets, category thumbnails, offline/empty/error handling.
+- Hidden long-press parent PIN entry, setup/confirmation/privacy acknowledgement, Keystore-protected salted PBKDF2 verifier, persistent exponential throttling, background/Back/Done/idle locking.
+- Room v1 categories, approvals/order, playlist snapshots; DataStore PIN settings. Category CRUD/order, content assignment/removal/order, explicit snapshot refresh.
+- Strict pasted/shared YouTube-link review and explicit approval; share intake always PIN-gated. Manual playlist snapshot entry works without credentials.
+- Official Data API search, paging, fetched snapshots, playback status lookup, Android-restricted-key headers, bounded network/error handling.
+- Official privacy-enhanced IFrame integration with package identity, controls, saved-ID Previous/Next, timeout/error UI, teardown. This is source implementation, not proof of on-device playback.
 
-## Verified application work
-- None. No Android code, compiled APK, or application test results exist.
+## Verified build evidence
+- JDK 21.0.8; Gradle 8.13; SDK 36.1; compile 36.1 / target 36 / min 26.
+- `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0).
+- 17 JVM tests passed. Lint: 0 errors, 14 dependency-version notices. Android test APK compiled.
+- Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (no API key configured).
+- `aapt dump badging` verified package/launcher/min/target metadata; installation/launch NOT tested.
+- `connectedDebugAndroidTest` attempted, failed with `No connected devices!`; no device tests executed. No AVD was configured.
 
-## Remaining priorities
-1. Confirm Android toolchain and SDK targets (`P0-01`).
-2. Decide whether official YouTube embed limitations are acceptable for a child-facing experience; review child-directed API obligations (`P0-02`).
-3. Pin compatible Android dependencies (`P0-03`), then scaffold only after gates pass.
+## Genuine blockers / limitations
+- No connected Android device/emulator: UI, startup, actual Keystore/Room persistence, lifecycle, and player runtime checks remain open.
+- No YouTube Data API key supplied: real search and playback eligibility/embedded playback remain untested. Keyless approvals are supported; keyless playback is intentionally blocked by YouTube's mandatory Made for Kids lookup.
+- No child-directed Google registration, privacy-policy publication, legal/retention/branding audit, or real-player navigation-escape acceptance performed. Not release-ready and not a complete safety boundary.
+- API-fetched titles remain transient; persisted labels are explicit local parent labels. Approval/bookmark retention still belongs in the release policy review.
 
-## Known blockers and risks
-- **Product safety gate:** an embedded YouTube player can expose recommendations/external navigation; strict allowlist containment cannot be promised.
-- Google Cloud YouTube Data API credentials, quota, and child-directed-client obligations require account setup/policy review when the parent search feature is built.
-- Machine-specific Android SDK/Java/Gradle availability, supported models, and Antigravity/Codex installed versions are unknown until first local run.
+## Changed paths / handoff
+New `app/`, root Gradle files/wrapper, `docs/PRIVACY.md`, `docs/VERIFICATION.md`; README replaced with build/install/key instructions and original starter README preserved as `docs/AGENT_SETUP.md`. PLAN, PROJECT_STATUS, HANDOFF and DECISIONS updated. Local SDK config is ignored; generated APKs/reports/build caches remain ignored. Existing agent configurations/instructions and PROJECT_SPEC are preserved.
 
-## Relevant paths
-- `PROJECT_SPEC.md` requirements and player safety gate.
-- `PLAN.md` task statuses/dependencies.
-- `.codex/` and `.agents/agents/` platform configurations.
-- `HANDOFF.md` bootstrap handoff and future session protocol.
-
-## Latest verification
-- **Application build/test/lint:** Not run (there is no application or Gradle wrapper).
-- **Starter-kit structural/configuration validation:** See kit delivery notes in README; this is *not* application verification.
-
-## Immediate next action
-Before editing code: read the shared context, inspect `git status`, claim `P0-01`, verify the local Android environment, and record actual findings. Separately resolve `P0-02` before playback implementation or any claim of guaranteed child-only viewing.
+See `docs/VERIFICATION.md` for command history, tests, artifact hash, acceptance matrix, and concrete device smoke sequence. See ADR-006–008 for dependency, playback-policy and security choices.
