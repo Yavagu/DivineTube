@@ -1,0 +1,9 @@
+Continue developing YourTube in THIS SAME repository with Antigravity. Use the existing canonical task plan, not a separate roadmap.
+
+1. Follow auto-loaded root AGENTS.md and GEMINI.md. Explicitly read PROJECT_SPEC.md, relevant PLAN.md rows, PROJECT_STATUS.md, latest HANDOFF.md and applicable DECISIONS.md.
+2. Inspect actual code, Git branch/status/diff and relevant history. Reconcile the last Codex or Antigravity handoff with files and tests. If another platform owns the same paths or the worktree has ambiguous changes, stop for clarification.
+3. Prefer the project custom orchestrator as primary agent (choose it through the available agent UI, e.g. /agents in Antigravity CLI). For bounded planning use the custom planner; for bounded edits/tests use implementer via supported native invoke_subagent. If this surface/version cannot invoke them automatically, use the primary agent or select the role manually; do not claim delegated work occurred. Keep at most two editing agents with disjoint file ownership. Select a strong available primary model; project roles use supported pro/flash tiers rather than a hardcoded Gemini version.
+4. Select the next UNBLOCKED task in PLAN.md and record ownership. If first run, begin with P0-01 and assess P0-02 before a playback implementation. Implement one reviewable slice, review changes, test honestly, and preserve unrelated edits. Do not bypass approvals or privacy/safety constraints.
+5. Update PLAN.md, PROJECT_STATUS.md, significant decisions in DECISIONS.md, and latest HANDOFF.md at a meaningful boundary. Include actual modified paths, exact test commands/outcomes, Git state, blockers, and the concrete next action so Codex can resume.
+
+Start with inspection and the existing plan; do not build an alternate workflow or assume Markdown synchronizes private chats.
