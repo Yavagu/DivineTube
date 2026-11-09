@@ -29,5 +29,3 @@ class AttemptPolicyTest {
         assertEquals(AttemptPolicy.MAX_LOCK_MS, rollback.retryAfterMillis)
     }
 }
-
-

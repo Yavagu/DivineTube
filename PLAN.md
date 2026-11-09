@@ -41,3 +41,8 @@ Commands are now executable. On 2026-11-10 assembleDebug, testDebugUnitTest (17 
 - At task start: set one row `ACTIVE`, assign its owner, add active task and file scopes to `PROJECT_STATUS.md`.
 - At task end: set row `VERIFIED` with evidence in `PROJECT_STATUS.md` or `BLOCKED` with reason, then advance only if dependencies are verified.
 - Release remains blocked by unmet runtime/policy gates. The explicit session authorization above permitted implementation while these checks were unavailable; it does not mark the checks passed.
+
+## Public source publication — VERIFIED (2026-11-10)
+- User explicitly requested public GitHub upload. Implementation committed as 0fcf1de and pushed to origin/main; GitHub API confirmed PUBLIC visibility for Yavagu/DivineTube.
+- Credential-pattern scan passed across 54 publishable files and existing commit history; sensitive/generated filename scan passed. Local SDK settings, keys, APKs, and build outputs remain ignored.
+- Publication does not certify an app release. Existing device/API/policy blockers remain unchanged. No build or runtime tests rerun for this publishing-only task.

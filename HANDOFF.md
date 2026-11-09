@@ -2,7 +2,16 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: first Android development build
+## Latest handoff: public GitHub source publication
+
+- **Recorded:** 2026-11-10 (Asia/Calcutta), Codex main.
+- **Authorization/result:** User requested public upload. Implementation commit 0fcf1de pushed to main; `gh repo edit Yavagu/DivineTube --visibility public --accept-visibility-change-consequences` succeeded. `gh repo view --json visibility,url` confirmed PUBLIC at https://github.com/Yavagu/DivineTube.
+- **Checks:** Credential-pattern scan passed for all 54 publishable files and existing history; sensitive/generated filename scan passed. Staged whitespace check found four trailing blank lines, removed in this handoff commit. No build/runtime tests rerun; implementation behavior unchanged.
+- **Changed paths:** Prior implementation committed; PLAN.md, PROJECT_STATUS.md, HANDOFF.md updated; trailing blank lines cleaned in LibraryRepository.kt, AttemptPolicy.kt, PinStore.kt, AttemptPolicyTest.kt.
+- **Git state:** main tracks origin/main; publication handoff committed and pushed after the implementation. Local configuration and generated artifacts remain ignored.
+- **Next action/blockers:** Complete the device/API/policy verification below. Public source availability does not mean release certification; no APK release was created.
+
+## Previous handoff: first Android development build
 
 - **Recorded:** 2026-11-10 (Asia/Calcutta).
 - **Source → destination:** Codex → same platform/new session or Antigravity.

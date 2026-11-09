@@ -8,7 +8,7 @@
 
 **Current platform/owner:** Codex main. Bounded storage/security and YouTube subagents finished; no other platform edits were observed. Shared documentation remains main-agent-owned.
 
-**Repository:** main at 9da06b8, tracking origin/main. This session started clean and leaves implementation changes uncommitted; nothing was pushed.
+**Repository:** Public at https://github.com/Yavagu/DivineTube, branch main tracking origin/main. Implementation committed as 0fcf1de and pushed on 2026-11-10 at the user's explicit request; publication handoff recorded in the following commit. Source publication does not clear release gates.
 
 ## Implemented
 - Native Compose/Material 3 Kids library with approved-only launch targets, category thumbnails, offline/empty/error handling.

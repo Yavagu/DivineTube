@@ -108,8 +108,3 @@ class LibraryRepository(private val database: LibraryDatabase) {
         private const val MAX_SNAPSHOT_SIZE = 500
     }
 }
-
-
-
-
-

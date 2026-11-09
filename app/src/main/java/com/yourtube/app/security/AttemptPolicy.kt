@@ -55,4 +55,3 @@ internal object AttemptPolicy {
         return (INITIAL_LOCK_MS * (1L shl exponent)).coerceAtMost(MAX_LOCK_MS)
     }
 }
-
