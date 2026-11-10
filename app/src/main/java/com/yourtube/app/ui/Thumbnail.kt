@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
@@ -32,8 +33,9 @@ fun Thumbnail(videoId: String?, modifier: Modifier = Modifier) {
             finally { connection.disconnect() }
         }
     }
-    Box(modifier.background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-        bitmap.value?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop) }
-            ?: Text("YouTube", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+    Box(modifier.background(Color(0xFF202020)), contentAlignment = Alignment.Center) {
+        bitmap.value?.let {
+            Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        } ?: Text("DivineTube", style = MaterialTheme.typography.titleMedium, color = Color(0xFF666666))
     }
 }

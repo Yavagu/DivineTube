@@ -13,12 +13,17 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.yourtube.app.AppViewModel
@@ -48,11 +53,20 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
         } catch (e: CancellationException) { throw e }
         catch (e: Exception) { failure = e.message ?: "Video is unavailable. Check your connection." }
     }
-    Column(modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = model::closePlayback, modifier = Modifier.heightIn(min = 52.dp)) { Text("Home") }
-        Text(playback.title, style = MaterialTheme.typography.headlineSmall)
-        if (playback.ids.size > 1) Text("Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium)
-        if (playback.preview) Text("Admin preview · not approved")
+    Column(modifier.fillMaxSize().background(Color(0xFF0F0F0F)).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = model::closePlayback,
+                modifier = Modifier.heightIn(min = 44.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFF333333))
+            ) {
+                Text("← Home", fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Text(playback.title, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
+        if (playback.ids.size > 1) Text("Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium, color = Color(0xFFAAAAAA))
+        if (playback.preview) Text("Admin preview · not approved", color = Color(0xFFFF0033))
         if (allowed && id != null) key(id, retry) {
             val startSeconds = remember(id, retry) {
                 if (playback.startSeconds != null && index == playback.initialIndex) {
@@ -69,26 +83,66 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
                     model.saveProgress(playback.entryId, id, pos, dur, completed)
                 }
             ) { failure = it }
-        } else if (failure == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Checking YouTube playback availability…") }
+        } else if (failure == null) {
+            LinearProgressIndicator(Modifier.fillMaxWidth(), color = Color(0xFFFF0033))
+            Text("Checking YouTube playback availability…", color = Color(0xFFAAAAAA))
+        }
         failure?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
-            Text("Check your internet connection, or try another saved video.")
-            Button(onClick = { retry++ }) { Text("Try again") }
+            Text("Check your internet connection, or try another saved video.", color = Color(0xFFAAAAAA))
+            Button(
+                onClick = { retry++ },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0033))
+            ) {
+                Text("Try again", color = Color.White)
+            }
         }
-        if (playback.ids.size > 1) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            OutlinedButton(onClick = { chooseEpisode(index - 1) }, enabled = index > 0, modifier = Modifier.heightIn(min = 52.dp)) { Text("Previous") }
-            Text("${index + 1} / ${playback.ids.size}", Modifier.padding(top = 16.dp))
-            Button(onClick = { chooseEpisode(index + 1) }, enabled = index < playback.ids.lastIndex, modifier = Modifier.heightIn(min = 52.dp)) { Text("Next") }
+        if (playback.ids.size > 1) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = { chooseEpisode(index - 1) },
+                enabled = index > 0,
+                modifier = Modifier.heightIn(min = 48.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFF333333))
+            ) {
+                Text("Previous")
+            }
+            Text("${index + 1} / ${playback.ids.size}", color = Color(0xFFAAAAAA))
+            Button(
+                onClick = { chooseEpisode(index + 1) },
+                enabled = index < playback.ids.lastIndex,
+                modifier = Modifier.heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0033))
+            ) {
+                Text("Next", color = Color.White)
+            }
         }
         if (playback.ids.size > 1) {
-            Text("Episodes", style = MaterialTheme.typography.headlineSmall)
+            Text("Episodes", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
             playback.ids.forEachIndexed { episode, _ ->
-                OutlinedButton(onClick = { chooseEpisode(episode) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                    Text(if (episode == index) "Now playing · Episode ${episode + 1}" else "Episode ${episode + 1}", style = MaterialTheme.typography.titleMedium)
+                val isCurrent = episode == index
+                OutlinedButton(
+                    onClick = { chooseEpisode(episode) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isCurrent) Color(0xFF222222) else Color.Transparent,
+                        contentColor = if (isCurrent) Color(0xFFFF0033) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isCurrent) Color(0xFFFF0033) else Color(0xFF333333))
+                ) {
+                    Text(
+                        if (isCurrent) "Now playing · Episode ${episode + 1}" else "Episode ${episode + 1}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                    )
                 }
             }
         }
-        Text("YouTube may show recommendations, ads, and links beyond this library. DivineTube opens only approved content from Home.", style = MaterialTheme.typography.bodySmall)
+        Text(
+            "YouTube may show recommendations, ads, and links beyond this library. DivineTube opens only approved content from Home.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color(0xFF777777)
+        )
     }
 }
 

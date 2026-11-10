@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,16 @@ data class ResumeCandidate(
     val positionSeconds: Long,
     val durationSeconds: Long
 )
+data class FeedItem(
+    val entryId: Long,
+    val videoId: String,
+    val title: String,
+    val isPlaylistEpisode: Boolean = false,
+    val playlistTitle: String? = null,
+    val episodeIndex: Int? = null,
+    val totalEpisodes: Int? = null,
+    val categoryId: Long? = null,
+)
 data class Review(val title: String, val ids: List<String>, val playlistId: String? = null)
 data class AppState(
     val ready: Boolean = false, val configured: Boolean = false,
@@ -47,6 +58,61 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val entries = app.library.entries.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val histories = app.library.watchHistory.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val progresses = app.library.playbackProgress.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private val itemOrderMap = mutableMapOf<Pair<Long, String>, Int>()
+    private val feedRandom = java.util.Random()
+
+    val homeFeed = entries.map { entryList ->
+        val items = mutableListOf<FeedItem>()
+        val seen = mutableSetOf<Pair<Long, String>>()
+        for (entry in entryList) {
+            val ids = entry.videoIds.split(',').map { it.trim() }.filter { it.isNotBlank() }
+            if (entry.playlistId == null) {
+                val vId = ids.firstOrNull() ?: continue
+                val key = Pair(entry.id, vId)
+                if (seen.add(key)) {
+                    items.add(
+                        FeedItem(
+                            entryId = entry.id,
+                            videoId = vId,
+                            title = entry.title,
+                            isPlaylistEpisode = false,
+                            playlistTitle = null,
+                            episodeIndex = null,
+                            totalEpisodes = null,
+                            categoryId = entry.categoryId
+                        )
+                    )
+                }
+            } else {
+                val uniqueIds = ids.distinct()
+                uniqueIds.forEach { vId ->
+                    val key = Pair(entry.id, vId)
+                    if (seen.add(key)) {
+                        val originalIndex = ids.indexOf(vId)
+                        items.add(
+                            FeedItem(
+                                entryId = entry.id,
+                                videoId = vId,
+                                title = if (ids.size > 1) "${entry.title} — Episode ${originalIndex + 1}" else entry.title,
+                                isPlaylistEpisode = true,
+                                playlistTitle = entry.title,
+                                episodeIndex = originalIndex,
+                                totalEpisodes = ids.size,
+                                categoryId = entry.categoryId
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        items.sortedBy { item ->
+            val key = Pair(item.entryId, item.videoId)
+            synchronized(itemOrderMap) {
+                itemOrderMap.getOrPut(key) { feedRandom.nextInt() }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     private val mutable = MutableStateFlow(AppState())
     val state = mutable.asStateFlow()
     private val _resumePromptDismissed = MutableStateFlow(false)
@@ -283,6 +349,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             )
         )
         playerEpisodeOpened(index)
+    }
+    fun playFeedItem(item: FeedItem) {
+        resumePlayback(item.entryId, item.videoId, startOver = false)
     }
     fun playerEpisodeOpened(index: Int) {
         val playback = state.value.playback ?: return
