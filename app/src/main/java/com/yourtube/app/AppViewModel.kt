@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,6 +23,15 @@ data class Playback(
     val preview: Boolean,
     val entryId: Long? = null,
     val initialIndex: Int = 0,
+    val startSeconds: Long? = null,
+)
+data class ResumeCandidate(
+    val entry: ApprovedEntry,
+    val videoId: String,
+    val episodeIndex: Int,
+    val totalEpisodes: Int,
+    val positionSeconds: Long,
+    val durationSeconds: Long
 )
 data class Review(val title: String, val ids: List<String>, val playlistId: String? = null)
 data class AppState(
@@ -36,8 +46,40 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val categories = app.library.categories.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val entries = app.library.entries.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val histories = app.library.watchHistory.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val progresses = app.library.playbackProgress.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     private val mutable = MutableStateFlow(AppState())
     val state = mutable.asStateFlow()
+    private val _resumePromptDismissed = MutableStateFlow(false)
+    fun dismissResumePrompt() { _resumePromptDismissed.value = true }
+
+    val resumeCandidate = combine(
+        entries,
+        progresses,
+        state,
+        _resumePromptDismissed
+    ) { entriesList, progressList, appState, dismissed ->
+        if (dismissed || appState.parent || appState.gate || appState.playback != null) {
+            null
+        } else {
+            progressList.asSequence()
+                .filter { !it.completed && it.positionSeconds >= 30 && (it.durationSeconds - it.positionSeconds >= 30) }
+                .mapNotNull { prog ->
+                    val entry = entriesList.firstOrNull { it.id == prog.entryId } ?: return@mapNotNull null
+                    val ids = entry.videoIds.split(',')
+                    val index = ids.indexOf(prog.videoId)
+                    if (index < 0) return@mapNotNull null
+                    ResumeCandidate(
+                        entry = entry,
+                        videoId = prog.videoId,
+                        episodeIndex = index,
+                        totalEpisodes = ids.size,
+                        positionSeconds = prog.positionSeconds,
+                        durationSeconds = prog.durationSeconds
+                    )
+                }
+                .firstOrNull()
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     private var epoch = 0L
     private var lastTouch = SystemClock.elapsedRealtime()
     private var work: Job? = null
@@ -176,7 +218,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val savedIndex = history?.videoId?.let(ids::indexOf)?.takeIf { it >= 0 }
             ?: history?.episodeIndex?.coerceIn(0, ids.lastIndex)
             ?: 0
-        mutable.value = state.value.copy(playback = Playback(ids, approved.title, false, approved.id, savedIndex))
+        val targetVideoId = ids.getOrNull(savedIndex)
+        val startSeconds = savedPosition(approved.id, targetVideoId)
+        mutable.value = state.value.copy(
+            playback = Playback(ids, approved.title, false, approved.id, savedIndex, startSeconds)
+        )
         playerEpisodeOpened(savedIndex)
     }
     fun preview(id: String, title: String) {
@@ -187,7 +233,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun selectEpisode(index: Int) {
         val playback = state.value.playback ?: return
         if (index !in playback.ids.indices) return
-        mutable.value = state.value.copy(playback = playback.copy(initialIndex = index))
+        val targetVideoId = playback.ids.getOrNull(index)
+        val startSeconds = savedPosition(playback.entryId, targetVideoId)
+        mutable.value = state.value.copy(playback = playback.copy(initialIndex = index, startSeconds = startSeconds))
+        playerEpisodeOpened(index)
+    }
+    fun savedPosition(entryId: Long?, videoId: String?): Long {
+        if (entryId == null || videoId == null) return 0L
+        val prog = progresses.value.firstOrNull { it.entryId == entryId && it.videoId == videoId } ?: return 0L
+        return if (!prog.completed) prog.positionSeconds else 0L
+    }
+    fun saveProgress(entryId: Long?, videoId: String?, positionSeconds: Long, durationSeconds: Long, completed: Boolean) {
+        if (entryId == null || videoId == null || videoId.isBlank() || positionSeconds < 0) return
+        val isCompleted = completed || (durationSeconds > 10 && positionSeconds >= durationSeconds - 10)
+        viewModelScope.launch {
+            app.library.savePlaybackProgress(
+                entryId = entryId,
+                videoId = videoId,
+                positionSeconds = if (isCompleted) 0L else positionSeconds,
+                durationSeconds = durationSeconds,
+                completed = isCompleted
+            )
+        }
+    }
+    fun clearProgress(entryId: Long, videoId: String) {
+        viewModelScope.launch {
+            app.library.clearPlaybackProgress(entryId, videoId)
+        }
+    }
+    fun resumePlayback(entryId: Long, videoId: String, startOver: Boolean = false) {
+        val approved = entries.value.firstOrNull { it.id == entryId } ?: return
+        val ids = approved.videoIds.split(',')
+        val index = ids.indexOf(videoId)
+        if (index < 0) return
+        val startSeconds = if (startOver) {
+            clearProgress(entryId, videoId)
+            0L
+        } else {
+            savedPosition(entryId, videoId)
+        }
+        mutable.value = state.value.copy(
+            playback = Playback(
+                ids = ids,
+                title = approved.title,
+                preview = false,
+                entryId = approved.id,
+                initialIndex = index,
+                startSeconds = startSeconds
+            )
+        )
         playerEpisodeOpened(index)
     }
     fun playerEpisodeOpened(index: Int) {

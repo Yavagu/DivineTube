@@ -4,7 +4,48 @@ This document records verification commands, outcomes, and remaining checks acro
 
 ---
 
-## 1. Tap-to-Fullscreen Landscape Playback (Version 0.2.0 — 2026-11-10)
+## 1. Playback Resume & Continue Watching Popup (Version 0.2.0 — 2026-11-10)
+
+### Verification status categories
+
+- **Source implementation:** COMPLETE. Room v2→v3 data-preserving migration with `playback_progress` entity keyed on `(entryId, videoId)`, periodic 5-second progress tracking via official YouTube IFrame JavaScript bridge (`getCurrentTime()`, `getDuration()`, `onStateChange`), single cue seek using embed `start` parameter without autoplay, completion handling (ENDED or final 10 seconds), playlist context restoration preserving complete episode lists and indices, and session-limited Home resume popup with "Resume", "Start over", and "Not now".
+- **Build verification:** PASSED. Assembly, compilation, unit tests, and lint checks passed with exit code 0 on JDK 21.
+- **Unit test verification:** PASSED. 36 unit tests executed, 0 failures, 0 errors (including 7 new tests in `PlaybackResumeTest` covering time formatting, candidate eligibility, playlist resume context preservation, start-over, completion, and episode switching).
+- **Device verification:** User manual testing on physical Android device.
+- **Existing playback issue distinction:** The underlying unconfirmed black-player device issue (PLAY-01) remains pending physical device verification. Fullscreen support and playback resume are presentation/data capabilities and do not replace device playback checks.
+
+### Executed commands and actual results
+
+All commands executed from `D:\Codes\DivineTube` on Windows 11 with PowerShell and `JAVA_HOME=C:\Program Files\Java\jdk-21`:
+
+| Command | Exit Code | Result | Details |
+| --- | :---: | :---: | --- |
+| `java -version` | 0 | PASSED | OpenJDK 21.0.8 (Oracle Corporation 21.0.8+12-LTS-250) |
+| `gradlew.bat --version` | 0 | PASSED | Gradle 8.13, JVM 21.0.8, OS Windows 11 amd64 |
+| `gradlew.bat :app:testDebugUnitTest` | 0 | PASSED | **36 tests executed, 0 failures, 0 errors** (YouTube API: 8, Link Parser: 4, Attempt Policy: 4, PIN Crypto: 2, Fullscreen Host & Back Priority: 11, Playback Resume: 7) |
+| `gradlew.bat :app:lintDebug` | 0 | PASSED | **0 errors, 15 warnings** (all 15 are newer dependency/Gradle version notices per ADR-006) |
+| `gradlew.bat :app:assembleDebug` | 0 | PASSED | Debug APK generated at `app/build/outputs/apk/debug/app-debug.apk` |
+| `gradlew.bat :app:assembleDebugAndroidTest` | 0 | PASSED | Test APK generated at `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` |
+| `git diff --check` | 0 | PASSED | Clean whitespace check across all tracked files |
+
+### Artifacts and build verification
+
+- **Debug APK:** `app/build/outputs/apk/debug/app-debug.apk`
+  - Version: `versionCode=2`, `versionName="0.2.0"`
+  - Application ID: `com.yourtube.app`
+  - Min SDK: 26 (Android 8.0), Target SDK: 36 (Android 16 preview), Compile SDK: 36.1
+  - Launcher: `com.yourtube.app.MainActivity`
+  - SHA-256: `763917A0C243C3AF15792A111233F81421A37A7A386FFEC5E725BF26ACD31160`
+- **Instrumented test APK:** `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`
+  - SHA-256: `98A0F158DE7ED1E11F0934E998D0B177709334AF118EF014F81C55659BB47647`
+- **Room schemas:**
+  - `app/schemas/com.yourtube.app.data.local.LibraryDatabase/1.json` (v1)
+  - `app/schemas/com.yourtube.app.data.local.LibraryDatabase/2.json` (v2)
+  - `app/schemas/com.yourtube.app.data.local.LibraryDatabase/3.json` (v3)
+
+---
+
+## 2. Tap-to-Fullscreen Landscape Playback (Version 0.2.0 — 2026-11-10)
 
 ### Verification status categories
 
@@ -42,7 +83,7 @@ All commands executed from `D:\Codes\DivineTube` on Windows 11 with PowerShell a
 
 ---
 
-## 2. Universal Family Redesign & Room v2 Migration (Version 0.2.0 — 2026-11-10)
+## 3. Universal Family Redesign & Room v2 Migration (Version 0.2.0 — 2026-11-10)
 
 ### Verification status categories
 
@@ -115,7 +156,7 @@ Verified via schema inspection, instrumented tests in `LibraryMigrationTest.kt`,
 
 ---
 
-## 3. Historical Scaffolding & Initial Version Verification (Version 0.1.0 — 2026-11-10)
+## 4. Historical Scaffolding & Initial Version Verification (Version 0.1.0 — 2026-11-10)
 
 *Historical record of initial build verification prior to the universal family redesign:*
 

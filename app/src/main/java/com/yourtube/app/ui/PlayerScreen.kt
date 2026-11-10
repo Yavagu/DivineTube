@@ -54,7 +54,21 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
         if (playback.ids.size > 1) Text("Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium)
         if (playback.preview) Text("Admin preview · not approved")
         if (allowed && id != null) key(id, retry) {
-            YoutubeEmbed(id, Modifier.fillMaxWidth().heightIn(min = 270.dp).aspectRatio(16f / 9f)) { failure = it }
+            val startSeconds = remember(id, retry) {
+                if (playback.startSeconds != null && index == playback.initialIndex) {
+                    playback.startSeconds
+                } else {
+                    model.savedPosition(playback.entryId, id)
+                }
+            }
+            YoutubeEmbed(
+                videoId = id,
+                startSeconds = startSeconds,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 270.dp).aspectRatio(16f / 9f),
+                onProgress = { pos, dur, completed ->
+                    model.saveProgress(playback.entryId, id, pos, dur, completed)
+                }
+            ) { failure = it }
         } else if (failure == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Checking YouTube playback availability…") }
         failure?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
@@ -79,7 +93,11 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
 }
 
 // WebView invokes annotated methods reflectively; the declaring class must be accessible.
-internal class PlayerEvents(private val ready: () -> Unit, private val error: (String) -> Unit) {
+internal class PlayerEvents(
+    private val ready: () -> Unit,
+    private val error: (String) -> Unit,
+    private val progress: (positionSeconds: Long, durationSeconds: Long, completed: Boolean) -> Unit = { _, _, _ -> }
+) {
     private val handler = Handler(Looper.getMainLooper())
     @JavascriptInterface fun onReady() { handler.post { ready() } }
     @JavascriptInterface fun onError(code: Int) {
@@ -91,6 +109,12 @@ internal class PlayerEvents(private val ready: () -> Unit, private val error: (S
         }
         handler.post { error(message) }
     }
+    @JavascriptInterface fun onProgress(position: Double, duration: Double, completed: Boolean) {
+        handler.post { progress(position.toLong(), duration.toLong(), completed) }
+    }
+    @JavascriptInterface fun onProgress(position: Long, duration: Long, completed: Boolean) {
+        handler.post { progress(position, duration, completed) }
+    }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -98,11 +122,15 @@ internal class PlayerEvents(private val ready: () -> Unit, private val error: (S
 private fun YoutubeEmbed(
     videoId: String,
     modifier: Modifier,
+    startSeconds: Long = 0L,
     fullscreenHost: FullscreenHost? = LocalFullscreenHost.current,
+    onProgress: (positionSeconds: Long, durationSeconds: Long, completed: Boolean) -> Unit = { _, _, _ -> },
     error: (String) -> Unit
 ) {
     val latestError by rememberUpdatedState(error)
+    val latestProgress by rememberUpdatedState(onProgress)
     val base = "https://${BuildConfig.APPLICATION_ID}/"
+    val startParam = if (startSeconds > 0) "&amp;start=$startSeconds" else ""
     var ready by remember { mutableStateOf(false) }
     LaunchedEffect(ready) {
         if (!ready) { delay(25_000); latestError("The YouTube player did not finish loading. Check your connection and try again.") }
@@ -132,7 +160,14 @@ private fun YoutubeEmbed(
                     fullscreenHost?.onHideCustomView(this@apply)
                 }
             }
-            addJavascriptInterface(PlayerEvents({ ready = true }, { latestError(it) }), "YourTubeEvents")
+            addJavascriptInterface(
+                PlayerEvents(
+                    ready = { ready = true },
+                    error = { latestError(it) },
+                    progress = { pos, dur, comp -> latestProgress(pos, dur, comp) }
+                ),
+                "YourTubeEvents"
+            )
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     // Do not launch arbitrary activities or navigate the app away from its local player document.
@@ -153,16 +188,54 @@ private fun YoutubeEmbed(
             loadDataWithBaseURL(base, """
                 <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
                 <body style="margin:0;background:#000"><iframe id="player" width="100%" height="100%"
-                src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&amp;autoplay=0&amp;controls=1&amp;playsinline=1&amp;fs=1&amp;rel=0&amp;origin=https%3A%2F%2F${BuildConfig.APPLICATION_ID}"
+                src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&amp;autoplay=0&amp;controls=1&amp;playsinline=1&amp;fs=1&amp;rel=0${startParam}&amp;origin=https%3A%2F%2F${BuildConfig.APPLICATION_ID}"
                 frameborder="0" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="YouTube video player"></iframe>
                 <script>
-                function onYouTubeIframeAPIReady(){new YT.Player('player',{
-                events:{onReady:function(){YourTubeEvents.onReady();},onError:function(e){YourTubeEvents.onError(e.data);}}});}
+                var ytPlayer;
+                var progressTimer = null;
+                function reportProgress(forceCompleted){
+                    if(!ytPlayer||typeof ytPlayer.getCurrentTime!=='function')return;
+                    try{
+                        var pos=Math.floor(ytPlayer.getCurrentTime()||0);
+                        var dur=Math.floor(ytPlayer.getDuration()||0);
+                        var isEnded=forceCompleted||(dur>10&&pos>=dur-10);
+                        YourTubeEvents.onProgress(pos,dur,isEnded);
+                    }catch(e){}
+                }
+                function startTracking(){
+                    if(progressTimer)clearInterval(progressTimer);
+                    progressTimer=setInterval(function(){reportProgress(false);},5000);
+                }
+                function stopTracking(){
+                    if(progressTimer){clearInterval(progressTimer);progressTimer=null;}
+                }
+                function onYouTubeIframeAPIReady(){
+                    ytPlayer=new YT.Player('player',{
+                        events:{
+                            onReady:function(){YourTubeEvents.onReady();},
+                            onStateChange:function(event){
+                                if(event.data===1){
+                                    startTracking();
+                                }else if(event.data===2){
+                                    stopTracking();
+                                    reportProgress(false);
+                                }else if(event.data===0){
+                                    stopTracking();
+                                    reportProgress(true);
+                                }else{
+                                    stopTracking();
+                                }
+                            },
+                            onError:function(e){stopTracking();YourTubeEvents.onError(e.data);}
+                        }
+                    });
+                }
                 </script><script src="https://www.youtube.com/iframe_api"></script>
                 <style>html,body,#player{width:100%;height:100%;margin:0;border:0;display:block;}html,body{overflow:hidden;}</style></body></html>
             """.trimIndent(), "text/html", "UTF-8", null)
         }
     }, onRelease = { view ->
+        view.evaluateJavascript("reportProgress(false);", null)
         fullscreenHost?.release(view)
         view.stopLoading(); view.onPause(); view.removeJavascriptInterface("YourTubeEvents")
         view.loadUrl("about:blank"); view.removeAllViews(); view.destroy()

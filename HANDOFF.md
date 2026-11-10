@@ -2,7 +2,32 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: tap-to-fullscreen landscape playback (2026-11-10, Antigravity)
+## Latest handoff: playback resume and continue watching popup (2026-11-10, Antigravity)
+
+- **Task & Authorization:** Implement Playback Resume & Continue Watching Popup in DivineTube on `main`. Fullscreen preserved.
+- **Implementation:**
+  - `LibraryDatabase.kt`: Added `PlaybackProgress` entity keyed by `(entryId, videoId)` with `positionSeconds`, `durationSeconds`, `updatedAt`, and `completed` boolean. Added Room v2→v3 migration `MIGRATION_2_3` creating table and index without touching categories, approved entries, or `watch_history`. Added DAO queries and mutations.
+  - `YourTubeApplication.kt`: Added `MIGRATION_2_3` to Room database builder.
+  - `LibraryRepository.kt`: Exposed `playbackProgress` flow and `savePlaybackProgress()` / `clearPlaybackProgress()`.
+  - `AppViewModel.kt`: Added `startSeconds` to `Playback`, `ResumeCandidate` data class, `progresses` state flow, session-scoped `_resumePromptDismissed` flag and `dismissResumePrompt()`, `resumeCandidate` flow (filters approved content, >=30s watched, >=30s remaining, uncompleted), `savedPosition()`, `saveProgress()`, `clearProgress()`, `resumePlayback(entryId, videoId, startOver)` supporting playlist context restoration, and updated `play()` and `selectEpisode()`.
+  - `PlayerScreen.kt`: Extended `PlayerEvents` with `onProgress(position, duration, completed)`, added `startSeconds` (`&amp;start=$startSeconds`) to iframe URL, added 5-second interval and pause/ended progress tracking in embedded JS, and wired progress saving and cleanup on view release.
+  - `YourTubeApp.kt`: Added Home resume popup `AlertDialog` with "Resume", "Start over", and "Not now" actions, and `formatProgressTime` formatting helper.
+  - `PlaybackResumeTest.kt`: Added 7 JVM unit tests covering time formatting, candidate eligibility, playlist resume context preservation, start-over, completion, and episode switching.
+  - `LibraryMigrationTest.kt`: Added `MIGRATION_2_3` validation and `PlaybackProgress` assertions.
+- **Verification evidence:**
+  - JDK 21.0.8, Gradle 8.13.
+  - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed with exit code 0.
+  - 36 JVM unit tests passed (8 YouTube API, 4 link parser, 4 attempt policy, 2 PIN crypto, 11 fullscreen, 7 playback resume; 0 failures, 0 errors).
+  - Android lint passed with 0 errors (15 version notices per ADR-006).
+  - Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (SHA-256 `763917A0C243C3AF15792A111233F81421A37A7A386FFEC5E725BF26ACD31160`).
+  - Test APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` (SHA-256 `98A0F158DE7ED1E11F0934E998D0B177709334AF118EF014F81C55659BB47647`).
+  - Staged whitespace check `git diff --check` passed cleanly.
+- **Git state:** Working tree on `main`.
+- **Next steps & blockers:**
+  - Install rebuilt debug APK on physical Android test device and verify playback resume, start over, dismiss popup, and playlist context restoration.
+  - PLAY-01 (black player issue) remains pending device verification.
+
+## Previous handoff: tap-to-fullscreen landscape playback (2026-11-10, Antigravity)
 
 - **Task & Authorization:** Implement YouTube-style tap-to-fullscreen playback in DivineTube on feature branch `feat/tap-to-fullscreen`.
 - **Implementation:**

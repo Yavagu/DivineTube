@@ -35,7 +35,7 @@ class LibraryMigrationTest {
         ).writableDatabase.close()
 
         val database = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addMigrations(LibraryDatabase.MIGRATION_1_2).build()
+            .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3).build()
         try {
             val entry = database.libraryDao().entries().single()
             assertEquals(11L, entry.id)
@@ -52,6 +52,14 @@ class LibraryMigrationTest {
             assertNotNull(savedHistory)
             assertEquals("abcdefghijk", savedHistory!!.videoId)
             assertEquals(0, savedHistory.episodeIndex)
+
+            // Test playback progress on migrated database
+            database.libraryDao().putPlaybackProgress(PlaybackProgress(11L, "abcdefghijk", 45L, 300L, 6000L, false))
+            val progress = database.libraryDao().playbackProgress(11L, "abcdefghijk")
+            assertNotNull(progress)
+            assertEquals(45L, progress!!.positionSeconds)
+            assertEquals(300L, progress.durationSeconds)
+            assertFalse(progress.completed)
         } finally {
             database.close()
             context.deleteDatabase(name)

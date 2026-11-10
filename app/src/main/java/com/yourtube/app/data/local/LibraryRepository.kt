@@ -8,12 +8,39 @@ class LibraryRepository(private val database: LibraryDatabase) {
     val categories: Flow<List<Category>> = dao.observeCategories()
     val entries: Flow<List<ApprovedEntry>> = dao.observeEntries()
     val watchHistory: Flow<List<WatchHistory>> = dao.observeWatchHistory()
+    val playbackProgress: Flow<List<PlaybackProgress>> = dao.observePlaybackProgress()
 
     suspend fun recordWatch(entryId: Long, index: Int, timestamp: Long) = database.withTransaction {
         val entry = dao.entry(entryId) ?: return@withTransaction
         val ids = entry.videoIds.split(',')
         require(index in ids.indices) { "Episode index is outside the approved snapshot" }
         dao.putWatchHistory(WatchHistory(entryId, ids[index], index, timestamp))
+    }
+
+    suspend fun savePlaybackProgress(
+        entryId: Long,
+        videoId: String,
+        positionSeconds: Long,
+        durationSeconds: Long,
+        completed: Boolean
+    ) = database.withTransaction {
+        val entry = dao.entry(entryId) ?: return@withTransaction
+        val ids = entry.videoIds.split(',')
+        if (videoId !in ids) return@withTransaction
+        dao.putPlaybackProgress(
+            PlaybackProgress(
+                entryId = entryId,
+                videoId = videoId,
+                positionSeconds = positionSeconds.coerceAtLeast(0),
+                durationSeconds = durationSeconds.coerceAtLeast(0),
+                updatedAt = System.currentTimeMillis(),
+                completed = completed
+            )
+        )
+    }
+
+    suspend fun clearPlaybackProgress(entryId: Long, videoId: String) = database.withTransaction {
+        dao.deletePlaybackProgress(entryId, videoId)
     }
 
     suspend fun setFeatured(entryId: Long) = database.withTransaction {

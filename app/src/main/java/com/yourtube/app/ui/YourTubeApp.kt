@@ -43,6 +43,7 @@ fun YourTubeApp(model: AppViewModel, fullscreenHost: FullscreenHost? = LocalFull
     val entries by model.entries.collectAsStateWithLifecycle()
     val categories by model.categories.collectAsStateWithLifecycle()
     val history by model.histories.collectAsStateWithLifecycle()
+    val resumeCandidate by model.resumeCandidate.collectAsStateWithLifecycle()
     var privacy by remember { mutableStateOf(false) }
     val online = rememberOnline()
     MaterialTheme(colorScheme = Palette) {
@@ -109,6 +110,46 @@ fun YourTubeApp(model: AppViewModel, fullscreenHost: FullscreenHost? = LocalFull
             if (state.gate && !state.parent) PinDialog(state, model)
             if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text("Privacy & YouTube") },
                 text = { PrivacyNotice() }, confirmButton = { TextButton(onClick = { privacy = false }) { Text("Close") } })
+            resumeCandidate?.let { candidate ->
+                AlertDialog(
+                    onDismissRequest = model::dismissResumePrompt,
+                    title = { Text("Continue watching?") },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(candidate.entry.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            if (candidate.totalEpisodes > 1) {
+                                Text("Episode ${candidate.episodeIndex + 1} of ${candidate.totalEpisodes}", style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Text(
+                                "${formatProgressTime(candidate.positionSeconds)} / ${formatProgressTime(candidate.durationSeconds)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            model.dismissResumePrompt()
+                            model.resumePlayback(candidate.entry.id, candidate.videoId, startOver = false)
+                        }) {
+                            Text("Resume")
+                        }
+                    },
+                    dismissButton = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = model::dismissResumePrompt) {
+                                Text("Not now")
+                            }
+                            OutlinedButton(onClick = {
+                                model.dismissResumePrompt()
+                                model.resumePlayback(candidate.entry.id, candidate.videoId, startOver = true)
+                            }) {
+                                Text("Start over")
+                            }
+                        }
+                    }
+                )
+            }
         }
         val isFullscreen = fullscreenHost?.isFullscreen == true
         BackHandler(isFullscreen || state.parent || state.gate || state.playback != null) {
@@ -320,5 +361,18 @@ private fun CategorySelector(categories: List<Category>, selected: Long?, choose
             DropdownMenuItem(text = { Text("No category") }, onClick = { choose(null); expanded = false })
             categories.forEach { c -> DropdownMenuItem(text = { Text(c.name) }, onClick = { choose(c.id); expanded = false }) }
         }
+    }
+}
+
+private fun formatProgressTime(seconds: Long): String {
+    val s = seconds.coerceAtLeast(0)
+    val m = s / 60
+    val remS = s % 60
+    val h = m / 60
+    val remM = m % 60
+    return if (h > 0) {
+        String.format("%d:%02d:%02d", h, remM, remS)
+    } else {
+        String.format("%d:%02d", remM, remS)
     }
 }

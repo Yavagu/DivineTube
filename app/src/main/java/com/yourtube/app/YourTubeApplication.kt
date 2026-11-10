@@ -12,7 +12,7 @@ import java.security.MessageDigest
 class YourTubeApplication : Application() {
     val database by lazy {
         Room.databaseBuilder(this, LibraryDatabase::class.java, "library.db")
-            .addMigrations(LibraryDatabase.MIGRATION_1_2)
+            .addMigrations(LibraryDatabase.MIGRATION_1_2, LibraryDatabase.MIGRATION_2_3)
             .build()
     }
     val library by lazy { LibraryRepository(database) }
