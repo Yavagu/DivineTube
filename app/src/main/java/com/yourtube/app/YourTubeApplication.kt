@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.room.Room
 import com.yourtube.app.data.local.LibraryDatabase
 import com.yourtube.app.data.local.LibraryRepository
+import com.yourtube.app.data.local.VideoTitleStore
 import com.yourtube.app.data.youtube.YoutubeApi
 import com.yourtube.app.security.PinStore
 import java.security.MessageDigest
@@ -16,6 +17,7 @@ class YourTubeApplication : Application() {
             .build()
     }
     val library by lazy { LibraryRepository(database) }
+    val videoTitles by lazy { VideoTitleStore(this) }
     val pins by lazy { PinStore(this) }
     @Suppress("DEPRECATION")
     val youtube by lazy {

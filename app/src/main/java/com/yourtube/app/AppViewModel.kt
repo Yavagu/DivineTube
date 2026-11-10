@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.yourtube.app.data.local.ApprovedEntry
 import com.yourtube.app.data.youtube.YoutubeItem
 import com.yourtube.app.data.youtube.YoutubeLink
+import com.yourtube.app.data.youtube.YoutubeTitleFetcher
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,21 +62,55 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val progresses = app.library.playbackProgress.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     private val itemOrderMap = mutableMapOf<Pair<Long, String>, Int>()
     private val feedRandom = java.util.Random()
+    private val _titlesUpdated = MutableStateFlow(0L)
+    private val pendingFetches = java.util.Collections.synchronizedSet(mutableSetOf<String>())
 
-    val homeFeed = entries.map { entryList ->
+    fun getVideoTitle(videoId: String): String? = app.videoTitles.getTitle(videoId)
+
+    fun saveVideoTitle(videoId: String, title: String) {
+        if (videoId.isNotBlank() && title.isNotBlank()) {
+            app.videoTitles.saveTitle(videoId, title)
+            _titlesUpdated.value = System.currentTimeMillis()
+        }
+    }
+
+    private fun fetchMissingTitles(videoIds: List<String>) {
+        val toFetch = videoIds.filter { id -> pendingFetches.add(id) }
+        if (toFetch.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            var updated = false
+            for (id in toFetch) {
+                if (app.videoTitles.getTitle(id) != null) continue
+                val title = YoutubeTitleFetcher.fetchTitle(id)
+                if (!title.isNullOrBlank()) {
+                    app.videoTitles.saveTitle(id, title)
+                    updated = true
+                }
+            }
+            if (updated) {
+                _titlesUpdated.value = System.currentTimeMillis()
+            }
+        }
+    }
+
+    val homeFeed = combine(entries, _titlesUpdated) { entryList, _ ->
         val items = mutableListOf<FeedItem>()
         val seen = mutableSetOf<Pair<Long, String>>()
+        val missingTitleIds = mutableListOf<String>()
+
         for (entry in entryList) {
             val ids = entry.videoIds.split(',').map { it.trim() }.filter { it.isNotBlank() }
             if (entry.playlistId == null) {
                 val vId = ids.firstOrNull() ?: continue
                 val key = Pair(entry.id, vId)
                 if (seen.add(key)) {
+                    val actualTitle = app.videoTitles.getTitle(vId) ?: entry.title
+                    if (app.videoTitles.getTitle(vId) == null) missingTitleIds.add(vId)
                     items.add(
                         FeedItem(
                             entryId = entry.id,
                             videoId = vId,
-                            title = entry.title,
+                            title = actualTitle,
                             isPlaylistEpisode = false,
                             playlistTitle = null,
                             episodeIndex = null,
@@ -89,11 +125,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val key = Pair(entry.id, vId)
                     if (seen.add(key)) {
                         val originalIndex = ids.indexOf(vId)
+                        val actualTitle = app.videoTitles.getTitle(vId)
+                        if (actualTitle == null) missingTitleIds.add(vId)
                         items.add(
                             FeedItem(
                                 entryId = entry.id,
                                 videoId = vId,
-                                title = if (ids.size > 1) "${entry.title} — Episode ${originalIndex + 1}" else entry.title,
+                                title = actualTitle ?: entry.title,
                                 isPlaylistEpisode = true,
                                 playlistTitle = entry.title,
                                 episodeIndex = originalIndex,
@@ -104,6 +142,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
             }
+        }
+        if (missingTitleIds.isNotEmpty()) {
+            fetchMissingTitles(missingTitleIds)
         }
         items.sortedBy { item ->
             val key = Pair(item.entryId, item.videoId)
@@ -228,6 +269,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val page = app.youtube.search(query.trim(), playlists, continuation)
         if (token == epoch) {
             searchQuery = query; searchPlaylists = playlists
+            val titleMap = page.items.filter { !it.isPlaylist && it.title.isNotBlank() }.associate { it.id to it.title }
+            if (titleMap.isNotEmpty()) {
+                app.videoTitles.saveTitles(titleMap)
+                _titlesUpdated.value = System.currentTimeMillis()
+            }
             mutable.value = state.value.copy(results = if (continuation != null) (state.value.results + page.items).distinctBy { it.id } else page.items,
                 nextPage = page.nextPageToken, message = if (page.items.isEmpty()) "No results found." else null)
         }
@@ -235,14 +281,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun prepareLink(text: String, title: String, manualVideos: String = "") = parentWork {
         val parsed = YoutubeLink.parse(text) ?: error("Use a valid YouTube video or playlist link.")
         val token = epoch
-        val review = if (parsed.videoId != null) Review(title.ifBlank { "Video ${parsed.videoId}" }, listOf(parsed.videoId))
-        else {
+        val review = if (parsed.videoId != null) {
+            val defaultTitle = title.ifBlank { "Video ${parsed.videoId}" }
+            if (title.isNotBlank()) {
+                app.videoTitles.saveTitle(parsed.videoId, title)
+                _titlesUpdated.value = System.currentTimeMillis()
+            }
+            Review(defaultTitle, listOf(parsed.videoId))
+        } else {
             val playlistId = parsed.playlistId ?: error("No playlist ID.")
-            val items = if (manualVideos.isNotBlank()) manualVideos.lines().filter { it.isNotBlank() }.map {
-                YoutubeLink.parse(it)?.videoId ?: error("Each snapshot line must be a valid video link.")
-            }.distinct() else app.youtube.playlistVideos(playlistId).map { it.id }.distinct()
+            val items = if (manualVideos.isNotBlank()) manualVideos.lines().filter { it.isNotBlank() }.mapNotNull {
+                val vid = YoutubeLink.parse(it)?.videoId
+                if (vid != null) YoutubeItem(vid, "", false) else null
+            }.distinctBy { it.id } else app.youtube.playlistVideos(playlistId)
             require(items.isNotEmpty()) { "Playlist contains no available videos." }
-            Review(title.ifBlank { "Playlist $playlistId" }, items, playlistId)
+            val titleMap = items.filter { it.title.isNotBlank() }.associate { it.id to it.title }
+            if (titleMap.isNotEmpty()) {
+                app.videoTitles.saveTitles(titleMap)
+                _titlesUpdated.value = System.currentTimeMillis()
+            }
+            Review(title.ifBlank { "Playlist $playlistId" }, items.map { it.id }.distinct(), playlistId)
         }
         if (token == epoch) mutable.value = state.value.copy(review = review, importText = "")
     }
@@ -266,6 +324,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val entry = entries.value.firstOrNull { it.id == id } ?: error("Approved content was not found.")
         val playlistId = entry.playlistId ?: error("Only playlists can be refreshed.")
         val items = app.youtube.playlistVideos(playlistId)
+        val titleMap = items.filter { it.title.isNotBlank() }.associate { it.id to it.title }
+        if (titleMap.isNotEmpty()) {
+            app.videoTitles.saveTitles(titleMap)
+            _titlesUpdated.value = System.currentTimeMillis()
+        }
         if (entry.refreshMode == "AUTOMATIC") {
             app.library.refreshPlaylistSnapshot(id, items.map { it.id })
             mutable.value = state.value.copy(message = "Trusted playlist updated from YouTube.")
@@ -371,10 +434,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         parentWork {
             var updated = 0
             trusted.forEach { entry ->
-                val snapshot = app.youtube.playlistVideos(entry.playlistId!!).map { it.id }
-                app.library.refreshPlaylistSnapshot(entry.id, snapshot)
+                val items = app.youtube.playlistVideos(entry.playlistId!!)
+                val titleMap = items.filter { it.title.isNotBlank() }.associate { it.id to it.title }
+                if (titleMap.isNotEmpty()) {
+                    app.videoTitles.saveTitles(titleMap)
+                }
+                app.library.refreshPlaylistSnapshot(entry.id, items.map { it.id })
                 updated++
             }
+            _titlesUpdated.value = System.currentTimeMillis()
             mutable.value = state.value.copy(message = "$updated trusted playlist(s) refreshed.")
         }
     }

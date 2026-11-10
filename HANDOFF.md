@@ -2,7 +2,33 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: dark theme and YouTube-style home redesign (2026-11-10, Antigravity)
+## Latest handoff: actual video title resolution & graceful playlist import (2026-11-10, Antigravity)
+
+- **Task & Authorization:** Resolve actual video titles on Home and category feeds rather than displaying synthetic episode names (e.g. avoiding "Mahabharat — Episode 1"), and automatically ignore private or unavailable videos during playlist imports instead of aborting the import.
+- **Implementation:**
+  - `VideoTitleStore.kt`: Created lightweight persistent title store backed by `SharedPreferences("video_titles")` and in-memory `ConcurrentHashMap` caching video titles by `videoId`, avoiding Room schema changes.
+  - `YoutubeTitleFetcher.kt`: Added keyless public YouTube oEmbed metadata fetcher (`https://www.youtube.com/oembed?url=...&format=json`) running on `Dispatchers.IO` for background title resolution.
+  - `YourTubeApplication.kt`: Initialized `videoTitles` store.
+  - `AppViewModel.kt`: Populated titles during playlist fetch, search, and link preparation; added background title fetcher for unresolved IDs; updated `homeFeed` to use `videoTitles.getTitle(vId) ?: entry.title` with truthful playlist subtitle (`"Playlist Name • Episode X of Y"`).
+  - `YoutubeApi.kt`: Updated `playlistVideos()` to skip items where video ID is missing/invalid or title indicates private/deleted (`continue`), only throwing an exception if zero playable videos remain in the playlist.
+  - `YourTubeApp.kt`: Resolved video titles in custom category feeds.
+  - `PlayerScreen.kt`: Displayed actual video titles as headline and in episode picker buttons.
+  - `HomeFeedTest.kt`: Added unit test `feedDisplaysActualVideoTitleRatherThanPlaylistEpisodeName()`.
+  - `YoutubeApiTest.kt`: Added unit test `playlistIgnoresPrivateAndUnavailableVideos()`.
+- **Verification evidence:**
+  - JDK 21.0.8, Gradle 8.13.
+  - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed with exit code 0.
+  - 44 JVM unit tests passed (9 YouTube API, 4 link parser, 4 attempt policy, 2 PIN crypto, 11 fullscreen, 7 playback resume, 7 home feed; 0 failures, 0 errors).
+  - Android lint passed with 0 errors (17 version/deprecation notices per ADR-006).
+  - Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (SHA-256 `13C0C9BB899F863F991DC966AF022A7C19041B9934063F88C705F7AF6320A00C`).
+  - Test APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` (SHA-256 `98A0F158DE7ED1E11F0934E998D0B177709334AF118EF014F81C55659BB47647`).
+  - Staged whitespace check `git diff --check` passed cleanly.
+- **Git state:** Working tree on `main`.
+- **Next steps & blockers:**
+  - Operator manual testing on physical Android device for video titles, playlist import with private videos, dark theme, and playback.
+  - PLAY-01 (black player issue) remains pending device verification.
+
+## Previous handoff: dark theme and YouTube-style home redesign (2026-11-10, Antigravity)
 
 - **Task & Authorization:** Implement complete dark-mode UI redesign inspired by YouTube mobile reference screenshot on `main`. Fullscreen, resume timestamps, PIN-protected Admin Mode, playlists, and approved-content restrictions preserved.
 - **Implementation:**

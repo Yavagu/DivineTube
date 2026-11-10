@@ -272,11 +272,12 @@ fun YourTubeApp(model: AppViewModel, fullscreenHost: FullscreenHost? = LocalFull
                                                 val vId = ids.firstOrNull() ?: continue
                                                 val key = Pair(entry.id, vId)
                                                 if (seen.add(key)) {
+                                                    val actualTitle = model.getVideoTitle(vId) ?: entry.title
                                                     items.add(
                                                         FeedItem(
                                                             entryId = entry.id,
                                                             videoId = vId,
-                                                            title = entry.title,
+                                                            title = actualTitle,
                                                             isPlaylistEpisode = false,
                                                             playlistTitle = null,
                                                             episodeIndex = null,
@@ -291,11 +292,12 @@ fun YourTubeApp(model: AppViewModel, fullscreenHost: FullscreenHost? = LocalFull
                                                     val key = Pair(entry.id, vId)
                                                     if (seen.add(key)) {
                                                         val originalIndex = ids.indexOf(vId)
+                                                        val actualTitle = model.getVideoTitle(vId)
                                                         items.add(
                                                             FeedItem(
                                                                 entryId = entry.id,
                                                                 videoId = vId,
-                                                                title = if (ids.size > 1) "${entry.title} — Episode ${originalIndex + 1}" else entry.title,
+                                                                title = actualTitle ?: entry.title,
                                                                 isPlaylistEpisode = true,
                                                                 playlistTitle = entry.title,
                                                                 episodeIndex = originalIndex,

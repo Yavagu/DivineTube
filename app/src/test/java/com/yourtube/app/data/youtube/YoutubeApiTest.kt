@@ -116,4 +116,18 @@ class YoutubeApiTest {
             throw AssertionError("Expected unavailable entry failure")
         } catch (e: YoutubeApiException) { assertTrue(e.message!!.contains("unavailable")) }
     }
+
+    @Test fun playlistIgnoresPrivateAndUnavailableVideos() = runBlocking {
+        val api = YoutubeApi("key", "pkg", "cert", YoutubeHttpTransport { _, _ ->
+            """{"items":[
+                {"contentDetails":{"videoId":"abcdefghijk"},"snippet":{"title":"Valid First"}},
+                {"contentDetails":{"videoId":"privatevid01"},"snippet":{"title":"Private video"}},
+                {"contentDetails":{"videoId":"deletedvid01"},"snippet":{"title":"Deleted video"}},
+                {"contentDetails":{"videoId":"lmnopqrstuv"},"snippet":{"title":"Valid Second"}}
+            ]}"""
+        })
+        val items = api.playlistVideos("PL1234567890")
+        assertEquals(2, items.size)
+        assertEquals(listOf(YoutubeItem("abcdefghijk", "Valid First", false), YoutubeItem("lmnopqrstuv", "Valid Second", false)), items)
+    }
 }

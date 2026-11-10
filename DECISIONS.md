@@ -78,3 +78,19 @@ Only record choices that affect architecture, security, user-visible behavior, c
 - **Home Feed:** Replaced category sections on Home with a vertically scrollable 16:9 full-width video card feed containing approved standalone videos and playlist episodes. Order randomized once per fresh app launch and kept stable across recomposition, tab switching, and returning from playback. No duplicate `(entryId, videoId)` items. Compact typography and truthful metadata (playlist name, episode index, saved progress, duration badge, thumbnail progress bar).
 - **Playlists & Category Feeds:** Dedicated Playlists tab displaying approved playlists with episode counts, recovering last-opened episode and saved progress. Custom category tabs displaying approved content assigned to each category, preserving playlist context when opening episodes. Clean empty states.
 - **Feature Preservation:** Preserved tap-to-fullscreen landscape playback, resume watching timestamps, continue watching launch popup, playlist navigation (Previous/Next/Episodes), hidden long-press Admin Mode with PBKDF2 PIN security, YouTube iframe player integration with Made for Kids restrictions.
+
+## ADR-014 — Video Title Resolution and Graceful Private Video Import (Accepted, 2026-11-10)
+- **Choice:**
+  1. Capture and resolve actual YouTube video titles rather than displaying synthetic `"Playlist Title — Episode N"` strings in the video feed, categories, and player screens.
+  2. Silently skip private, deleted, or unavailable videos during playlist imports and updates instead of aborting the entire import with a failure error.
+- **Title Storage & Fetching Architecture:**
+  - `VideoTitleStore`: Lightweight `SharedPreferences`-backed persistent store with in-memory `ConcurrentHashMap` caching video titles keyed by `videoId`. Avoids modifying Room database schema or triggering an unnecessary v3→v4 migration.
+  - Multi-tiered resolution:
+    - Primary: Captures actual video titles during YouTube Data API playlist imports (`playlistVideos()`), search (`search()`), and link preparation (`prepareLink()`).
+    - Fallback: Non-intrusive background fetcher (`YoutubeTitleFetcher`) using public YouTube oEmbed metadata endpoint (`https://www.youtube.com/oembed?url=...&format=json`) running on `Dispatchers.IO` without requiring API keys or quota consumption.
+  - Feed and Player UI: Home feed items and category cards display actual titles as the primary headline, moving playlist series context to a truthful subtitle (e.g. `"Mahabharat • Episode 1 of 50"`). Player screen headline displays the actual video title and episode buttons show real episode names.
+- **Graceful Playlist Import:**
+  - `YoutubeApi.playlistVideos()` scans playlist items; if a video ID is missing/invalid or title indicates `"Private video"` or `"Deleted video"`, it bypasses the item (`continue`) and proceeds with importing the remaining playable videos.
+  - If and only if an imported playlist contains zero playable videos, it throws `YoutubeApiException("This playlist contains only private or unavailable videos.")`.
+- **Tradeoffs:**
+  - oEmbed fallback requires an internet connection when missing from local store; cached persistently once fetched. Private video skipping does not import private items; if a publisher makes a private video public later, a playlist refresh will pick it up.

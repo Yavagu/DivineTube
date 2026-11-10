@@ -122,11 +122,11 @@ class YoutubeApi(
             val json = request("playlistItems", mapOf("part" to "snippet,contentDetails", "playlistId" to id, "maxResults" to "50", "pageToken" to token))
             val array = json.optJSONArray("items") ?: throw YoutubeApiException("YouTube returned an incomplete playlist response.")
             for (i in 0 until array.length()) {
-                val item = array.optJSONObject(i) ?: throw YoutubeApiException("YouTube returned an incomplete playlist item.")
+                val item = array.optJSONObject(i) ?: continue
                 val videoId = item.optJSONObject("contentDetails")?.optString("videoId").orEmpty()
                 val title = item.optJSONObject("snippet")?.optString("title").orEmpty()
                 if (!isVideoId(videoId) || title.isBlank() || title.equals("Private video", true) || title.equals("Deleted video", true)) {
-                    throw YoutubeApiException("This playlist contains a private or unavailable video. Review it in YouTube before importing.")
+                    continue
                 }
                 result += YoutubeItem(videoId, title, false)
                 if (result.size > MAX_PLAYLIST_ITEMS) throw YoutubeApiException("This playlist has more than $MAX_PLAYLIST_ITEMS items and is too large to review at once.")
@@ -142,6 +142,9 @@ class YoutubeApi(
                 throw YoutubeApiException("This playlist has more than $MAX_PLAYLIST_ITEMS items and cannot be imported as a complete snapshot.")
             }
         } while (token != null)
+        if (result.isEmpty()) {
+            throw YoutubeApiException("This playlist contains only private or unavailable videos.")
+        }
         return result
     }
 

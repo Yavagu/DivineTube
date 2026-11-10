@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.yourtube.app.AppViewModel
@@ -64,8 +65,10 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
                 Text("← Home", fontWeight = FontWeight.SemiBold)
             }
         }
-        Text(playback.title, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
-        if (playback.ids.size > 1) Text("Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium, color = Color(0xFFAAAAAA))
+        val currentVideoId = playback.ids.getOrNull(index)
+        val currentTitle = currentVideoId?.let { model.getVideoTitle(it) } ?: playback.title
+        Text(currentTitle, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
+        if (playback.ids.size > 1) Text("${playback.title} · Episode ${index + 1} of ${playback.ids.size}", style = MaterialTheme.typography.titleMedium, color = Color(0xFFAAAAAA))
         if (playback.preview) Text("Admin preview · not approved", color = Color(0xFFFF0033))
         if (allowed && id != null) key(id, retry) {
             val startSeconds = remember(id, retry) {
@@ -119,8 +122,9 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
         }
         if (playback.ids.size > 1) {
             Text("Episodes", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
-            playback.ids.forEachIndexed { episode, _ ->
+            playback.ids.forEachIndexed { episode, epVid ->
                 val isCurrent = episode == index
+                val epTitle = model.getVideoTitle(epVid) ?: "Episode ${episode + 1}"
                 OutlinedButton(
                     onClick = { chooseEpisode(episode) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
@@ -131,9 +135,11 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
                     border = BorderStroke(1.dp, if (isCurrent) Color(0xFFFF0033) else Color(0xFF333333))
                 ) {
                     Text(
-                        if (isCurrent) "Now playing · Episode ${episode + 1}" else "Episode ${episode + 1}",
+                        if (isCurrent) "Now playing · $epTitle" else epTitle,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

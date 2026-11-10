@@ -14,6 +14,7 @@ class HomeFeedTest {
     private fun buildFeedItems(
         entries: List<ApprovedEntry>,
         orderMap: MutableMap<Pair<Long, String>, Int>,
+        titleLookup: (String) -> String? = { null },
         random: Random = Random(42)
     ): List<FeedItem> {
         val items = mutableListOf<FeedItem>()
@@ -24,11 +25,12 @@ class HomeFeedTest {
                 val vId = ids.firstOrNull() ?: continue
                 val key = Pair(entry.id, vId)
                 if (seen.add(key)) {
+                    val actualTitle = titleLookup(vId) ?: entry.title
                     items.add(
                         FeedItem(
                             entryId = entry.id,
                             videoId = vId,
-                            title = entry.title,
+                            title = actualTitle,
                             isPlaylistEpisode = false,
                             playlistTitle = null,
                             episodeIndex = null,
@@ -43,11 +45,12 @@ class HomeFeedTest {
                     val key = Pair(entry.id, vId)
                     if (seen.add(key)) {
                         val originalIndex = ids.indexOf(vId)
+                        val actualTitle = titleLookup(vId)
                         items.add(
                             FeedItem(
                                 entryId = entry.id,
                                 videoId = vId,
-                                title = if (ids.size > 1) "${entry.title} — Episode ${originalIndex + 1}" else entry.title,
+                                title = actualTitle ?: entry.title,
                                 isPlaylistEpisode = true,
                                 playlistTitle = entry.title,
                                 episodeIndex = originalIndex,
@@ -99,8 +102,32 @@ class HomeFeedTest {
         assertTrue(plEpisodes.all { it.totalEpisodes == 3 })
 
         val ep2 = plEpisodes.first { it.videoId == "ep2" }
-        assertEquals("Epic Series — Episode 2", ep2.title)
+        assertEquals("Epic Series", ep2.title)
         assertEquals(1, ep2.episodeIndex)
+    }
+
+    @Test
+    fun feedDisplaysActualVideoTitleRatherThanPlaylistEpisodeName() {
+        val playlist = ApprovedEntry(id = 1L, title = "Greatest Cartoons", videoIds = "vid1,vid2", playlistId = "PL_CARTOONS", position = 0)
+        val titles = mapOf(
+            "vid1" to "The Midnight Snack",
+            "vid2" to "Fraidy Cat"
+        )
+        val orderMap = mutableMapOf<Pair<Long, String>, Int>()
+        val feed = buildFeedItems(listOf(playlist), orderMap, titleLookup = { titles[it] })
+
+        assertEquals(2, feed.size)
+        val item1 = feed.first { it.videoId == "vid1" }
+        assertEquals("The Midnight Snack", item1.title)
+        assertNotEquals("Greatest Cartoons — Episode 1", item1.title)
+        assertEquals("Greatest Cartoons", item1.playlistTitle)
+        assertEquals(0, item1.episodeIndex)
+
+        val item2 = feed.first { it.videoId == "vid2" }
+        assertEquals("Fraidy Cat", item2.title)
+        assertNotEquals("Greatest Cartoons — Episode 2", item2.title)
+        assertEquals("Greatest Cartoons", item2.playlistTitle)
+        assertEquals(1, item2.episodeIndex)
     }
 
     @Test
@@ -156,7 +183,7 @@ class HomeFeedTest {
         val feedItem = FeedItem(
             entryId = 10L,
             videoId = "vid103",
-            title = "Mahabharat — Episode 3",
+            title = "The Game of Dice",
             isPlaylistEpisode = true,
             playlistTitle = "Mahabharat",
             episodeIndex = 2,
