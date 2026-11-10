@@ -4,9 +4,17 @@
 
 **Phase:** Universal family redesign & Room v2 migration verified (version 0.2.0); device and credentialed API testing pending operator setup.
 
-**Active task:** Universal family redesign tasks FAM-01 through FAM-05 VERIFIED. Ready for device and API testing.
+**Active task:** PLAY-01 BLOCKED on device confirmation: player patch built; actual playback and new WebView instrumentation test remain unverified.
 
-**Current platform/owner:** Antigravity orchestrator. Shared documentation remains main-agent-owned.
+**Current platform/owner:** Codex, following user-reported playback failure. Shared documentation remains main-agent-owned.
+
+## Latest playback patch (2026-11-10)
+- Added WebChromeClient, explicit WebView layout sizing, accessible JavaScript callback class, callback registration before API script loading, visible loading text, and iframe HTTP/network errors. Exact on-device cause remains unconfirmed.
+- `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed (exit 0), using JDK 21; 18 JVM tests passed. `git diff --check` passed.
+- `adb devices -l`: no devices. New `PlayerEventsTest` compiles but has not run; real playback, retry, and episode switching require device verification.
+- Updated debug APK SHA-256: `6E1BE233B45ADAD77F51BB54B95E57355E6F76EE294A3AE3C7BD43C8E0AF6372` (supersedes artifact hash below).
+- Modified: `PlayerScreen.kt`, new `PlayerEventsTest.kt`, `PLAN.md`, `PROJECT_STATUS.md`, `HANDOFF.md`. Included in the user-requested hotfix commit on `main` for GitHub publication.
+- Next: update installed app with rebuilt debug APK without clearing its data, then verify playback on the affected device.
 
 **Repository:** Public at https://github.com/Yavagu/DivineTube, branch main tracking origin/main. Prior release 0.1.0 committed as 0fcf1de and 6e85e78; universal family redesign commit 64b2f30 followed by verification and defect fixes ready to push.
 

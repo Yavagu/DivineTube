@@ -6,6 +6,8 @@
 
 ## Universal family redesign (2026-11-10)
 
+- **PLAY-01 (BLOCKED on device confirmation, Codex, 2026-11-10):** Patched WebView initialization/layout/callbacks and exposed useful failures for the reported black player. Scope: `PlayerScreen.kt`, `PlayerEventsTest.kt`, shared status/handoff. JDK 21 build, 18 unit tests, lint, and instrumentation APK assembly passed. No attached device: new real-WebView callback test and actual YouTube playback remain unrun. Install updated debug APK and verify video, error/retry, and episode switching before marking VERIFIED.
+
 | Task | Deliverable | Status | Evidence required |
 | --- | --- | --- | --- |
 | FAM-01 | Rename visible product/modes to DivineTube, Viewer Mode, Admin Mode, Approved content, and Home while preserving the PIN boundary. | VERIFIED | Build; navigation tests compile; Viewer cannot reach admin UI. |
@@ -61,3 +63,6 @@ At a failure, record exact command, exit code, and relevant error; apply a bound
 - User explicitly requested public GitHub upload. Implementation committed as 0fcf1de and pushed to origin/main; GitHub API confirmed PUBLIC visibility for Yavagu/DivineTube.
 - Credential-pattern scan passed across 54 publishable files and existing commit history; sensitive/generated filename scan passed. Local SDK settings, keys, APKs, and build outputs remain ignored.
 - Publication does not certify an app release. Existing device/API/policy blockers remain unchanged. No build or runtime tests rerun for this publishing-only task.
+
+## Hotfix publication (2026-11-10)
+- User requested publishing the latest player changes as a hotfix on main. Build, JVM test, lint, and instrumentation APK assembly command succeeded with Gradle up-to-date outputs; existing reports contain 18 passing JVM tests. Credential-pattern and staged whitespace checks passed. PLAY-01 remains BLOCKED pending device confirmation.

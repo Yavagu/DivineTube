@@ -1,13 +1,14 @@
 package com.yourtube.app.ui
 
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -55,7 +56,7 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
             YoutubeEmbed(id, Modifier.fillMaxWidth().heightIn(min = 270.dp).aspectRatio(16f / 9f)) { failure = it }
         } else if (failure == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text("Checking YouTube playback availability…") }
         failure?.let {
-            Text(if (model.state.value.parent) it else "This video can't be played right now. Please ask your administrator for help.", color = MaterialTheme.colorScheme.error)
+            Text(it, color = MaterialTheme.colorScheme.error)
             Text("Check your internet connection, or try another saved video.")
             Button(onClick = { retry++ }) { Text("Try again") }
         }
@@ -76,7 +77,8 @@ fun PlayerScreen(playback: Playback, model: AppViewModel, modifier: Modifier) {
     }
 }
 
-private class PlayerEvents(private val ready: () -> Unit, private val error: (String) -> Unit) {
+// WebView invokes annotated methods reflectively; the declaring class must be accessible.
+internal class PlayerEvents(private val ready: () -> Unit, private val error: (String) -> Unit) {
     private val handler = Handler(Looper.getMainLooper())
     @JavascriptInterface fun onReady() { handler.post { ready() } }
     @JavascriptInterface fun onError(code: Int) {
@@ -99,10 +101,14 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
     LaunchedEffect(ready) {
         if (!ready) { delay(25_000); latestError("The YouTube player did not finish loading. Check your connection and try again.") }
     }
-    Column(modifier) {
-    if (!ready) LinearProgressIndicator(Modifier.fillMaxWidth())
-    AndroidView(modifier = Modifier.fillMaxWidth().weight(1f), factory = { context ->
+    Column {
+    if (!ready) {
+        LinearProgressIndicator(Modifier.fillMaxWidth())
+        Text("Loading YouTube player…")
+    }
+    AndroidView(modifier = modifier, factory = { context ->
         WebView(context).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
@@ -111,6 +117,7 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
             settings.mediaPlaybackRequiresUserGesture = true
             settings.setSupportMultipleWindows(false)
             settings.javaScriptCanOpenWindowsAutomatically = false
+            webChromeClient = WebChromeClient()
             addJavascriptInterface(PlayerEvents({ ready = true }, { latestError(it) }), "YourTubeEvents")
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -121,7 +128,12 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
                         uri.scheme != "https" || uri.host !in setOf("www.youtube.com", "www.youtube-nocookie.com", "youtube.com")
                 }
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, failure: WebResourceError) {
-                    if (request.isForMainFrame) latestError("Player could not load. Check your internet connection.")
+                    if (request.isForMainFrame || request.url.path?.startsWith("/embed/") == true)
+                        latestError("Player could not load. Check your internet connection.")
+                }
+                override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                    if (request.isForMainFrame || request.url.path?.startsWith("/embed/") == true)
+                        latestError("YouTube player could not load (HTTP ${response.statusCode}). Try again later.")
                 }
             }
             loadDataWithBaseURL(base, """
@@ -129,10 +141,11 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
                 <body style="margin:0;background:#000"><iframe id="player" width="100%" height="100%"
                 src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&amp;autoplay=0&amp;controls=1&amp;playsinline=1&amp;fs=0&amp;rel=0&amp;origin=https%3A%2F%2F${BuildConfig.APPLICATION_ID}"
                 frameborder="0" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" title="YouTube video player"></iframe>
-                <script src="https://www.youtube.com/iframe_api"></script><script>
+                <script>
                 function onYouTubeIframeAPIReady(){new YT.Player('player',{
                 events:{onReady:function(){YourTubeEvents.onReady();},onError:function(e){YourTubeEvents.onError(e.data);}}});}
-                </script><style>html,body,#player{width:100%;height:100%;}</style></body></html>
+                </script><script src="https://www.youtube.com/iframe_api"></script>
+                <style>html,body,#player{width:100%;height:100%;margin:0;border:0;display:block;}html,body{overflow:hidden;}</style></body></html>
             """.trimIndent(), "text/html", "UTF-8", null)
         }
     }, onRelease = { view ->

@@ -2,6 +2,23 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
+## Latest handoff: player hotfix publication (2026-11-10, Codex)
+
+- User authorized publishing the latest changes to GitHub as a hotfix. Scope: PlayerScreen.kt, PlayerEventsTest.kt, PLAN.md, PROJECT_STATUS.md, HANDOFF.md. User source changes preserved.
+- Publishing on main from 4e5b104 with commit message `Hotfix: repair black player initialization and callbacks`.
+- Verification: JDK 21 Gradle assembleDebug, testDebugUnitTest, lintDebug, assembleDebugAndroidTest command exit 0 (86 tasks up-to-date, 1 executed); existing JVM reports show 18 tests, zero failures/errors. Credential-pattern scan and staged whitespace check passed. No device tests or real playback executed during publication.
+- Next action: verify playback and callback instrumentation on an Android device; PLAY-01 and existing release gates remain blocked.
+
+## Previous handoff: black player investigation (2026-11-10, Codex)
+
+- User reports a black video area without controls. Checkout was clean at `4e5b104`; no Android device attached (`adb devices -l`). Exact runtime cause could not be reproduced here.
+- `PlayerScreen.kt`: installed WebChromeClient, explicit native view dimensions, moved progress outside video dimensions, made JavaScript bridge class accessible, defined API-ready callback before loading API script, and exposed loading/error details including iframe network/HTTP errors. Official IFrame, app-origin identity, user-gesture playback, navigation restrictions, and eligibility checks retained.
+- New `app/src/androidTest/java/com/yourtube/app/ui/PlayerEventsTest.kt`: offline real-WebView JavaScript bridge test for ready/error callbacks and main-thread delivery. Compiles; NOT executed without a device.
+- JDK 21: `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` exit 0, 18 unit tests passed. `git diff --check` exit 0.
+- Artifact: `app/build/outputs/apk/debug/app-debug.apk`, SHA-256 `6E1BE233B45ADAD77F51BB54B95E57355E6F76EE294A3AE3C7BD43C8E0AF6372`.
+- Changed paths: player source, new player test, `PLAN.md`, `PROJECT_STATUS.md`, `HANDOFF.md`. Local uncommitted changes on `main`; no commit/push requested or performed.
+- PLAY-01 remains BLOCKED on actual device confirmation. Next: install APK as an update; test thumbnail/controls, user-tapped playback, offline/error/retry, Previous/Next, and run `:app:connectedDebugAndroidTest`. All existing release/policy gates remain open.
+
 ## Latest handoff: version 0.2.0 verification, defect fixes, and test expansion
 
 - **Recorded:** 2026-11-10 (Asia/Calcutta), Antigravity orchestrator.
