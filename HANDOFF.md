@@ -2,7 +2,31 @@
 
 Read AGENTS.md, PROJECT_SPEC.md, PLAN.md and this snapshot; inspect actual Git changes before editing. Shared documents are explicit context, not private memory or a lock.
 
-## Latest handoff: player hotfix publication (2026-11-10, Codex)
+## Latest handoff: tap-to-fullscreen landscape playback (2026-11-10, Antigravity)
+
+- **Task & Authorization:** Implement YouTube-style tap-to-fullscreen playback in DivineTube on feature branch `feat/tap-to-fullscreen`.
+- **Implementation:**
+  - `FullscreenHost.kt`: Activity-owned controller interface and `DefaultFullscreenHost` attaching the Chromium custom view to `window.decorView` with `MATCH_PARENT` layout, black background, `SCREEN_ORIENTATION_SENSOR_LANDSCAPE`, and transient system bar hiding via `WindowInsetsControllerCompat`.
+  - `AndroidManifest.xml`: Declared `android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"` on `MainActivity`.
+  - `MainActivity.kt`: Provided `LocalFullscreenHost`, handled `onConfigurationChanged()` to preserve Viewer Mode playback across rotation while invalidating parent/PIN authorization if Admin Mode or PIN gate is active, and added lifecycle cleanup on pause and destroy.
+  - `PlayerScreen.kt`: Updated iframe parameters (`fs=1`, `allow="... fullscreen" allowfullscreen`), implemented `WebChromeClient` callbacks (`onShowCustomView` and `onHideCustomView`), and added `onRelease` fullscreen cleanup.
+  - `YourTubeApp.kt`: Prioritized exiting fullscreen in Compose `BackHandler` before closing playback or locking.
+  - `FullscreenHostTest.kt`: Added 11 focused JVM unit tests (state transitions, duplicate entry, idempotent cleanup, callback notification, orientation restoration, source matching, Back navigation priority, and configuration change security).
+  - `FullscreenIntegrationTest.kt`: Added Compose / Activity instrumentation test for fullscreen view attachment, orientation changes, and cleanup.
+- **Verification evidence:**
+  - JDK 21.0.8, Gradle 8.13.
+  - `gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest` passed with exit code 0.
+  - 29 JVM unit tests passed (11 new tests, 18 existing tests, 0 failures, 0 errors).
+  - Android lint passed with 0 errors (15 version notices per ADR-006).
+  - Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (SHA-256 `C61A995BF8FE59883529566A1DC862B1CE1BD513023A9ED3077D257E64836CEF`).
+  - Test APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` (SHA-256 `45C1602D30A3458F9FA734811C4E5A9E81995E7FE2371D607E07982E4D57AFAB`).
+  - Staged whitespace check `git diff --check` passed cleanly.
+  - `adb devices -l` empty: physical device playback remains NOT TESTED.
+- **Git state:** Branch `feat/tap-to-fullscreen` created from `main` (commit `0a28b4f`).
+- **Next steps & blockers:**
+  - Install rebuilt debug APK on physical Android test device and verify fullscreen toggle, landscape rotation, system bar hiding, Back navigation, and playback continuity.
+  - PLAY-01 (black player issue) remains pending device verification; fullscreen support is a presentation capability and does not fix underlying player initialization issues.
+
 
 - User authorized publishing the latest changes to GitHub as a hotfix. Scope: PlayerScreen.kt, PlayerEventsTest.kt, PLAN.md, PROJECT_STATUS.md, HANDOFF.md. User source changes preserved.
 - Publishing on main from 4e5b104 with commit message `Hotfix: repair black player initialization and callbacks`.

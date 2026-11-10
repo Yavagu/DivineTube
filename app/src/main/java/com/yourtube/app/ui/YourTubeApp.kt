@@ -38,7 +38,7 @@ private val Palette = lightColorScheme(primary = Color(0xFF395AB5), secondary = 
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun YourTubeApp(model: AppViewModel) {
+fun YourTubeApp(model: AppViewModel, fullscreenHost: FullscreenHost? = LocalFullscreenHost.current) {
     val state by model.state.collectAsStateWithLifecycle()
     val entries by model.entries.collectAsStateWithLifecycle()
     val categories by model.categories.collectAsStateWithLifecycle()
@@ -110,8 +110,13 @@ fun YourTubeApp(model: AppViewModel) {
             if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text("Privacy & YouTube") },
                 text = { PrivacyNotice() }, confirmButton = { TextButton(onClick = { privacy = false }) { Text("Close") } })
         }
-        BackHandler(state.parent || state.gate || state.playback != null) {
-            when { state.playback != null -> model.closePlayback(); else -> model.lock() }
+        val isFullscreen = fullscreenHost?.isFullscreen == true
+        BackHandler(isFullscreen || state.parent || state.gate || state.playback != null) {
+            when {
+                isFullscreen -> fullscreenHost.exitFullscreen()
+                state.playback != null -> model.closePlayback()
+                else -> model.lock()
+            }
         }
     }
 }

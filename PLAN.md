@@ -4,9 +4,10 @@
 
 **Session authorization (2026-11-10):** User explicitly requested continuous first-version implementation, including official playback with documented limitations. Local implementation proceeds in parallel with verification; real-device and policy/account gates remain release gates and are never treated as passed merely to permit coding. This supersedes the initial sequential scaffolding gate for this session. No claim of complete content isolation.
 
-## Universal family redesign (2026-11-10)
+## Universal family redesign & Fullscreen playback (2026-11-10)
 
-- **PLAY-01 (BLOCKED on device confirmation, Codex, 2026-11-10):** Patched WebView initialization/layout/callbacks and exposed useful failures for the reported black player. Scope: `PlayerScreen.kt`, `PlayerEventsTest.kt`, shared status/handoff. JDK 21 build, 18 unit tests, lint, and instrumentation APK assembly passed. No attached device: new real-WebView callback test and actual YouTube playback remain unrun. Install updated debug APK and verify video, error/retry, and episode switching before marking VERIFIED.
+- **PLAY-01 (BLOCKED on device confirmation, Codex, 2026-11-10):** Patched WebView initialization/layout/callbacks and exposed useful failures for the reported black player. Scope: `PlayerScreen.kt`, `PlayerEventsTest.kt`, shared status/handoff. JDK 21 build, 18 unit tests, lint, and instrumentation APK assembly passed. No attached device: new real-WebView callback test and actual YouTube playback remain unrun. Install updated debug APK and verify video, error/retry, and episode switching before marking VERIFIED. Fullscreen playback (PLAY-02) does not substitute for or resolve this underlying issue.
+- **PLAY-02 (VERIFIED for implementation, build, and tests; device verification pending, Antigravity, 2026-11-10):** Implemented YouTube-style tap-to-fullscreen landscape playback. Scope: `MainActivity.kt`, `PlayerScreen.kt`, `YourTubeApp.kt`, `FullscreenHost.kt`, `AndroidManifest.xml`, `FullscreenHostTest.kt`, `FullscreenIntegrationTest.kt`. Fullscreen controller owned by `MainActivity`, WebChromeClient `onShowCustomView` / `onHideCustomView`, sensor landscape orientation request/restore, immersive system bars, `configChanges` handling with parent/PIN security preservation, and prioritized Compose Back handling. JDK 21 build, 29 unit tests passed, 0 lint errors, debug & androidTest APKs assembled. Physical device execution pending hardware.
 
 | Task | Deliverable | Status | Evidence required |
 | --- | --- | --- | --- |

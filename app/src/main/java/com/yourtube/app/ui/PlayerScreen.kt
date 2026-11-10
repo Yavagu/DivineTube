@@ -3,6 +3,7 @@ package com.yourtube.app.ui
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
@@ -94,7 +95,12 @@ internal class PlayerEvents(private val ready: () -> Unit, private val error: (S
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) -> Unit) {
+private fun YoutubeEmbed(
+    videoId: String,
+    modifier: Modifier,
+    fullscreenHost: FullscreenHost? = LocalFullscreenHost.current,
+    error: (String) -> Unit
+) {
     val latestError by rememberUpdatedState(error)
     val base = "https://${BuildConfig.APPLICATION_ID}/"
     var ready by remember { mutableStateOf(false) }
@@ -117,7 +123,15 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
             settings.mediaPlaybackRequiresUserGesture = true
             settings.setSupportMultipleWindows(false)
             settings.javaScriptCanOpenWindowsAutomatically = false
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                    fullscreenHost?.enterFullscreen(view, this@apply, callback)
+                }
+
+                override fun onHideCustomView() {
+                    fullscreenHost?.onHideCustomView(this@apply)
+                }
+            }
             addJavascriptInterface(PlayerEvents({ ready = true }, { latestError(it) }), "YourTubeEvents")
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -139,8 +153,8 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
             loadDataWithBaseURL(base, """
                 <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head>
                 <body style="margin:0;background:#000"><iframe id="player" width="100%" height="100%"
-                src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&amp;autoplay=0&amp;controls=1&amp;playsinline=1&amp;fs=0&amp;rel=0&amp;origin=https%3A%2F%2F${BuildConfig.APPLICATION_ID}"
-                frameborder="0" allow="encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" title="YouTube video player"></iframe>
+                src="https://www.youtube-nocookie.com/embed/$videoId?enablejsapi=1&amp;autoplay=0&amp;controls=1&amp;playsinline=1&amp;fs=1&amp;rel=0&amp;origin=https%3A%2F%2F${BuildConfig.APPLICATION_ID}"
+                frameborder="0" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="YouTube video player"></iframe>
                 <script>
                 function onYouTubeIframeAPIReady(){new YT.Player('player',{
                 events:{onReady:function(){YourTubeEvents.onReady();},onError:function(e){YourTubeEvents.onError(e.data);}}});}
@@ -149,6 +163,7 @@ private fun YoutubeEmbed(videoId: String, modifier: Modifier, error: (String) ->
             """.trimIndent(), "text/html", "UTF-8", null)
         }
     }, onRelease = { view ->
+        fullscreenHost?.release(view)
         view.stopLoading(); view.onPause(); view.removeJavascriptInterface("YourTubeEvents")
         view.loadUrl("about:blank"); view.removeAllViews(); view.destroy()
     })

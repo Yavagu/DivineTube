@@ -4,7 +4,45 @@ This document records verification commands, outcomes, and remaining checks acro
 
 ---
 
-## 1. Universal Family Redesign & Room v2 Migration (Version 0.2.0 — 2026-11-10)
+## 1. Tap-to-Fullscreen Landscape Playback (Version 0.2.0 — 2026-11-10)
+
+### Verification status categories
+
+- **Source implementation:** COMPLETE. YouTube IFrame player fullscreen parameter (`fs=1`), explicit iframe fullscreen permissions (`allow="... fullscreen" allowfullscreen`), `WebChromeClient` custom view lifecycle callbacks (`onShowCustomView`, `onHideCustomView`), Activity-level `DefaultFullscreenHost`, orientation handling (`SCREEN_ORIENTATION_SENSOR_LANDSCAPE`), immersive transient system bars via `WindowInsetsControllerCompat`, `configChanges` with parent/PIN security preservation on rotation, Compose `BackHandler` priority navigation, and idempotent cleanup on player disposal, episode change, retry, and Activity destruction.
+- **Build verification:** PASSED. Assembly, compilation, unit tests, and lint checks passed with exit code 0 on JDK 21.
+- **Unit test verification:** PASSED. 29 unit tests executed, 0 failures, 0 errors (including 11 new tests in `FullscreenHostTest` covering state transitions, duplicate entry, idempotent cleanup, callback notification, orientation restoration, source matching, Back navigation priority, and configuration change security).
+- **Device verification:** NOT TESTED. Blocked because no physical Android device or emulator is connected (`adb devices -l` is empty).
+- **Existing playback issue distinction:** The underlying unconfirmed black-player device issue (PLAY-01) remains pending physical device verification. Fullscreen support is a presentation capability and is NOT presented as a fix for the underlying player initialization issue.
+
+### Executed commands and actual results
+
+All commands executed from `D:\Codes\DivineTube` on Windows 11 with PowerShell and `JAVA_HOME=C:\Program Files\Java\jdk-21`:
+
+| Command | Exit Code | Result | Details |
+| --- | :---: | :---: | --- |
+| `java -version` | 0 | PASSED | OpenJDK 21.0.8 (Oracle Corporation 21.0.8+12-LTS-250) |
+| `gradlew.bat --version` | 0 | PASSED | Gradle 8.13, JVM 21.0.8, OS Windows 11 amd64 |
+| `gradlew.bat :app:testDebugUnitTest` | 0 | PASSED | **29 tests executed, 0 failures, 0 errors** (YouTube API: 8, Link Parser: 4, Attempt Policy: 4, PIN Crypto: 2, Fullscreen Host & Back Priority: 11) |
+| `gradlew.bat :app:lintDebug` | 0 | PASSED | **0 errors, 15 warnings** (all 15 are newer dependency/Gradle version notices per ADR-006) |
+| `gradlew.bat :app:assembleDebug` | 0 | PASSED | Debug APK generated at `app/build/outputs/apk/debug/app-debug.apk` |
+| `gradlew.bat :app:assembleDebugAndroidTest` | 0 | PASSED | Test APK generated at `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk` |
+| `adb devices -l` | 0 | EMPTY | No connected devices or emulators |
+| `git diff --check` | 0 | PASSED | Clean whitespace check across all tracked files |
+
+### Artifacts and build verification
+
+- **Debug APK:** `app/build/outputs/apk/debug/app-debug.apk`
+  - Version: `versionCode=2`, `versionName="0.2.0"`
+  - Application ID: `com.yourtube.app`
+  - Min SDK: 26 (Android 8.0), Target SDK: 36 (Android 16 preview), Compile SDK: 36.1
+  - Launcher: `com.yourtube.app.MainActivity`
+  - SHA-256: `C61A995BF8FE59883529566A1DC862B1CE1BD513023A9ED3077D257E64836CEF`
+- **Instrumented test APK:** `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`
+  - SHA-256: `45C1602D30A3458F9FA734811C4E5A9E81995E7FE2371D607E07982E4D57AFAB`
+
+---
+
+## 2. Universal Family Redesign & Room v2 Migration (Version 0.2.0 — 2026-11-10)
 
 ### Verification status categories
 
@@ -77,7 +115,7 @@ Verified via schema inspection, instrumented tests in `LibraryMigrationTest.kt`,
 
 ---
 
-## 2. Historical Scaffolding & Initial Version Verification (Version 0.1.0 — 2026-11-10)
+## 3. Historical Scaffolding & Initial Version Verification (Version 0.1.0 — 2026-11-10)
 
 *Historical record of initial build verification prior to the universal family redesign:*
 
